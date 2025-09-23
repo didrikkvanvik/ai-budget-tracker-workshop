@@ -1,0 +1,24 @@
+---
+description:
+globs: 
+alwaysApply: true
+---
+
+# Comments
+
+Avoid the use of code comments. Instead, use descriptive classes, methods or functions.
+
+
+# Tests
+
+Tests use Microsoft Testing Platform. That's relevant to run and collect test logs.
+
+`dotnet run -p tests/OutputDiagnostics.Core.Tests --output detailed --filter-query "/OutputDiagnostics.Core.Tests/OutputDiagnostics.Core.Tests.DiagnosticMessages/OrderProcessorTests/ProcessOrder_WithInvalidCustomer_ProvidesContextualFailureInfo"`
+
+### Naming
+
+Follow the snake case convention (Should_do_when_something)
+
+### Mocks
+
+Prefer NSubstitute.

@@ -1,0 +1,44 @@
+# .NET **/bin/ **/obj/ **/out/ **/.vs/ **/.vscode/ **/.idea/ **
+/*.user
+**/
+*.userosscache **
+/*.suo
+**/
+*.suo.* **
+/*.cache
+**/
+*.dll.config **
+/*.exe
+**/
+*.pdb **
+/*.dll
+**/
+*.lib **
+/*.sbr
+**/
+*.suo **
+/*.tmp
+**/
+*.tmp_proj **
+/*.log
+**/
+*.vspscc **
+/*.vssscc
+.builds/
+**/
+*.pidb **
+/*.svclog
+**/
+*.scc # Node.js **/node_modules/ **/npm-debug.log* **/yarn-debug.log* **/yarn-error.log* **/lerna-debug.log* **/.npm **/.eslintcache **/.parcel-cache **/.nuxt **/dist **/.cache/ **/.vuepress/dist **/.serverless/ **/.fusebox/ **/.dynamodb/ **/.tern-port # Git **/.git **/.gitignore # Docker **/Dockerfile* **/docker-compose* **/.dockerignore # Documentation **/README*.md **/LICENSE **/CHANGELOG.md # Tests **/tests/ **
+/*test*
+**/
+*.test.* **
+/*.spec.*
+
+# Other
+**/
+.DS_Store **/Thumbs.db **
+/*.env
+**/
+*.env.* !**
+/*.env.example
