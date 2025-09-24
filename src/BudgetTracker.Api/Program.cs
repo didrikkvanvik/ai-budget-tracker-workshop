@@ -2,6 +2,7 @@ using BudgetTracker.Api.AntiForgery;
 using BudgetTracker.Api.Auth;
 using Microsoft.EntityFrameworkCore;
 using BudgetTracker.Api.Infrastructure;
+using BudgetTracker.Api.Features.Transactions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -136,6 +137,7 @@ app.MapGet("/", () => "API");
 app
     .MapGroup("/api")
     .MapAntiForgeryEndpoints()
-    .MapAuthEndpoints();
+    .MapAuthEndpoints()
+    .MapTransactionEndpoints();
 
 app.Run();
