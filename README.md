@@ -70,7 +70,7 @@ Edit `.env` with your preferred settings (optional - defaults work for local dev
 
 ### 3. Database Setup
 
-**Option A: Database Only (Recommended for Development)**
+**Database Only (Recommended for Development)**
 
 Start just the PostgreSQL database using Docker:
 
@@ -83,15 +83,6 @@ docker-compose up -d
 #### Windows:
 ```powershell
 cd docker
-docker-compose up -d
-```
-
-**Option B: Full Stack with Docker**
-
-Alternatively, you can run the entire stack (database, API, and web) using Docker:
-
-```bash
-# From project root
 docker-compose up -d
 ```
 
@@ -195,7 +186,7 @@ The React application will be available at: http://localhost:5173
 
 ### Running the Full Stack
 
-**Option A: Individual Services (Recommended for Development)**
+**Individual Services (Recommended for Development)**
 
 1. **Start the database**:
    ```bash
@@ -211,13 +202,6 @@ The React application will be available at: http://localhost:5173
    ```bash
    cd src/BudgetTracker.Web && npm run dev
    ```
-
-**Option B: Full Docker Stack**
-
-```bash
-# From project root
-docker-compose up -d
-```
 
 Access the applications:
 - **Frontend:** http://localhost:5173

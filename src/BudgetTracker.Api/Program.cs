@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using BudgetTracker.Api.Infrastructure;
 using BudgetTracker.Api.Features.Transactions;
 using BudgetTracker.Api.Features.Transactions.Import.Processing;
+using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +53,14 @@ builder.Services.AddDbContext<BudgetTrackerContext>(options =>
 // Add CSV Import Service
 builder.Services.AddScoped<CsvImporter>();
 
+// Configure Azure AI
+builder.Services.Configure<AzureAiConfiguration>(
+    builder.Configuration.GetSection(AzureAiConfiguration.SectionName));
+
+// Register AI services
+builder.Services.AddScoped<IAzureChatService, AzureChatService>();
+builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
+
 // Add Auth with multiple schemes
 builder.Services.AddAuthorization(options =>
 {
@@ -99,7 +108,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowLocalDevelopment", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "http://localhost:3001") // TODO: Update with configurable origins
+            .WithOrigins("http://localhost:5173", "https://localhost:5173", "http://localhost:3001") // TODO: Update with configurable origins
             .AllowCredentials()
             .AllowAnyMethod()
             .AllowAnyHeader();

@@ -167,3 +167,4 @@ Thumbs.db
 
 # Claude
 .claude/
+src/BudgetTracker.Web/package-lock.json

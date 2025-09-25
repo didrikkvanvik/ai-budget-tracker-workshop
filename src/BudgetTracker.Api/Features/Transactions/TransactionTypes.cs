@@ -40,6 +40,9 @@ public class Transaction
 
     [Required]
     public string UserId { get; set; } = string.Empty;
+
+    [MaxLength(50)]
+    public string? ImportSessionHash { get; set; }
 }
 
 public class TransactionDto

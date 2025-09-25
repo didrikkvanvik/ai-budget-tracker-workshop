@@ -37,6 +37,30 @@ export interface ImportResult {
   failedCount: number;
   errors: string[];
   sourceFile?: string;
-  importSessionHash?: string;
+  importSessionHash: string;
   importedAt: string;
+  enhancements: TransactionEnhancementResult[];
+}
+
+export interface TransactionEnhancementResult {
+  transactionId: string;
+  importSessionHash: string;
+  transactionIndex: number;
+  originalDescription: string;
+  enhancedDescription: string;
+  confidenceScore: number;
+}
+
+export interface EnhanceImportRequest {
+  importSessionHash: string;
+  enhancements: TransactionEnhancementResult[];
+  minConfidenceScore: number;
+  applyEnhancements: boolean;
+}
+
+export interface EnhanceImportResult {
+  importSessionHash: string;
+  totalTransactions: number;
+  enhancedCount: number;
+  skippedCount: number;
 }

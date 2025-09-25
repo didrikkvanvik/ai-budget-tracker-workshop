@@ -11,6 +11,33 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{CC9E823A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetTracker.Api.Tests", "tests\BudgetTracker.Api.Tests\BudgetTracker.Api.Tests.csproj", "{B51771AE-5E60-45AB-BC3B-1A23DE5FEAA4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs/tasks", "docs/tasks", "{ABBA3EF7-583F-4168-B09D-658BE40EF34D}"
+	ProjectSection(SolutionItems) = preProject
+		docs\tasks\043-rag-natural-language-query.md = docs\tasks\043-rag-natural-language-query.md
+		docs\tasks\062-mcp-server-prompts.md = docs\tasks\062-mcp-server-prompts.md
+		docs\tasks\061-mcp-server.md = docs\tasks\061-mcp-server.md
+		docs\tasks\054-add-category-spending-tool.md = docs\tasks\054-add-category-spending-tool.md
+		docs\tasks\053-agentic-tools.md = docs\tasks\053-agentic-tools.md
+		docs\tasks\052-recommendation-agent.md = docs\tasks\052-recommendation-agent.md
+		docs\tasks\051-analytics-insights.md = docs\tasks\051-analytics-insights.md
+		docs\tasks\044-rag-natural-language-query-web.md = docs\tasks\044-rag-natural-language-query-web.md
+		docs\tasks\042-rag-semantic-search.md = docs\tasks\042-rag-semantic-search.md
+		docs\tasks\031-add-helicone.md = docs\tasks\031-add-helicone.md
+		docs\tasks\022-smart-csv-detection.md = docs\tasks\022-smart-csv-detection.md
+		docs\tasks\021-image-import.md = docs\tasks\021-image-import.md
+		docs\tasks\015-ai-transaction-categorization.md = docs\tasks\015-ai-transaction-categorization.md
+		docs\tasks\014-react-enhancement-preview.md = docs\tasks\014-react-enhancement-preview.md
+		docs\tasks\013-react-multi-step-upload.md = docs\tasks\013-react-multi-step-upload.md
+		docs\tasks\012-ai-transaction-enhancement-backend.md = docs\tasks\012-ai-transaction-enhancement-backend.md
+		docs\tasks\011-azure-ai-setup.md = docs\tasks\011-azure-ai-setup.md
+		docs\tasks\005-react-transactions-import.md = docs\tasks\005-react-transactions-import.md
+		docs\tasks\004-react-transactions-list.md = docs\tasks\004-react-transactions-list.md
+		docs\tasks\003-csv-import.md = docs\tasks\003-csv-import.md
+		docs\tasks\002-api.md = docs\tasks\002-api.md
+		docs\tasks\001-transactions.md = docs\tasks\001-transactions.md
+		docs\tasks\041-rag.md = docs\tasks\041-rag.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
