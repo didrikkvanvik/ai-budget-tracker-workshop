@@ -60,6 +60,10 @@ public static class ImportApi
                     if (enhancement != null)
                     {
                         transaction.Description = enhancement.EnhancedDescription;
+                        if (!string.IsNullOrEmpty(enhancement.SuggestedCategory))
+                        {
+                            transaction.Category = enhancement.SuggestedCategory;
+                        }
                     }
 
                     transaction.ImportSessionHash = sessionHash;
@@ -109,6 +113,11 @@ public static class ImportApi
                     if (transaction == null) continue;
 
                     transaction.Description = enhancement.EnhancedDescription;
+
+                    if (!string.IsNullOrEmpty(enhancement.SuggestedCategory))
+                    {
+                        transaction.Category = enhancement.SuggestedCategory;
+                    }
 
                     enhancedCount++;
                 }
@@ -179,6 +188,7 @@ public static class ImportApi
             TransactionIndex = index,
             OriginalDescription = enhancement.OriginalDescription,
             EnhancedDescription = enhancement.EnhancedDescription,
+            SuggestedCategory = enhancement.SuggestedCategory,
             ConfidenceScore = enhancement.ConfidenceScore
         }).ToList();
     }
