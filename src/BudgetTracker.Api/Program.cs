@@ -5,6 +5,7 @@ using BudgetTracker.Api.Infrastructure;
 using BudgetTracker.Api.Features.Transactions;
 using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
+using BudgetTracker.Api.Features.Transactions.Import.Detection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,8 +52,12 @@ builder.Services.AddDbContext<BudgetTrackerContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add import services
-builder.Services.AddScoped<CsvImporter>();
+// Add CSV detection services
+builder.Services.AddScoped<ICsvStructureDetector, CsvStructureDetector>();
+builder.Services.AddScoped<ICsvDetector, CsvDetector>();
+builder.Services.AddScoped<ICsvAnalyzer, CsvAnalyzer>();
 builder.Services.AddScoped<IImageImporter, ImageImporter>();
+builder.Services.AddScoped<CsvImporter>();
 
 // Configure Azure AI
 builder.Services.Configure<AzureAiConfiguration>(

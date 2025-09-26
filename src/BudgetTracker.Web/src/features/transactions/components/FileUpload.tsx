@@ -436,6 +436,17 @@ function FileUpload({ className = '' }: FileUploadProps) {
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
+
+              {/* Add detection status indicator */}
+              {uploadProgress < 30 && (
+                <div className="mt-2 text-xs text-gray-500 flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                  Detecting CSV structure and column mappings...
+                </div>
+              )}
             </div>
           )}
         </>
@@ -456,6 +467,28 @@ function FileUpload({ className = '' }: FileUploadProps) {
                 </span>
               </div>
             </div>
+
+            {/* Add detection information display */}
+            {importResult.detectionMethod && (
+              <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-green-800">
+                    CSV Analysis Method: {importResult.detectionMethod}
+                  </span>
+                  {importResult.detectionConfidence !== undefined && (
+                    <span className="text-sm text-green-700 bg-green-200 px-2 py-1 rounded">
+                      {Math.round(importResult.detectionConfidence)}% confidence
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm text-green-600 mt-1">
+                  {importResult.detectionMethod === 'RuleBased'
+                    ? 'Standard format detected using pattern matching'
+                    : 'Complex format analyzed using AI detection'
+                  }
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {importResult.enhancements.slice(0, 10).map((enhancement: any, index: number) => {

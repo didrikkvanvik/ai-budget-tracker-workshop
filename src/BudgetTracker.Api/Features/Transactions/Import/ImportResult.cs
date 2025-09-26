@@ -2,15 +2,16 @@ namespace BudgetTracker.Api.Features.Transactions.Import;
 
 public class ImportResult
 {
-    public int TotalRows { get; set; }
+    public string SourceFile { get; set; } = string.Empty;
+    public DateTime ImportedAt { get; set; }
     public int ImportedCount { get; set; }
     public int FailedCount { get; set; }
+    public int TotalRows { get; set; }
     public List<string> Errors { get; set; } = new();
-    public string? SourceFile { get; set; }
-    public DateTime ImportedAt { get; set; } = DateTime.UtcNow;
-
     public string ImportSessionHash { get; set; } = string.Empty;
     public List<TransactionEnhancementResult> Enhancements { get; set; } = new();
+    public string? DetectionMethod { get; set; } // "RuleBased" or "AI"
+    public double DetectionConfidence { get; set; } // 0-100
 }
 
 public class EnhanceImportRequest

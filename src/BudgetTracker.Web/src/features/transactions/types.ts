@@ -32,14 +32,13 @@ export interface ImportTransactionsParams {
 }
 
 export interface ImportResult {
-  totalRows: number;
   importedCount: number;
   failedCount: number;
   errors: string[];
-  sourceFile?: string;
   importSessionHash: string;
-  importedAt: string;
   enhancements: TransactionEnhancementResult[];
+  detectionMethod?: string; // "RuleBased" | "AI"
+  detectionConfidence?: number; // 0-100
 }
 
 export interface TransactionEnhancementResult {

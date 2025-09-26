@@ -5,6 +5,7 @@ using BudgetTracker.Api.Auth;
 using BudgetTracker.Api.Infrastructure;
 using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
+using BudgetTracker.Api.Features.Transactions.Import.Detection;
 using BudgetTracker.Api.AntiForgery;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +29,8 @@ public static class ImportApi
     private static async Task<Results<Ok<ImportResult>, BadRequest<string>>> ImportAsync(
         IFormFile file, [FromForm] string account,
         CsvImporter csvImporter, IImageImporter imageImporter, BudgetTrackerContext context,
-        ITransactionEnhancer enhancementService, ClaimsPrincipal claimsPrincipal)
+        ITransactionEnhancer enhancementService, ClaimsPrincipal claimsPrincipal,
+        ICsvStructureDetector detectionService, IServiceProvider serviceProvider)
     {
         var validationResult = ValidateFileInput(file);
         if (validationResult != null)
@@ -41,8 +43,8 @@ public static class ImportApi
             var userId = claimsPrincipal.GetUserId();
             await using var stream = file.OpenReadStream();
 
-            var (importResult, transactions) = await ProcessFileAsync(
-                stream, file.FileName, userId, account, csvImporter, imageImporter);
+            var (importResult, transactions, detectionResult) = await ProcessFileAsync(
+                stream, file.FileName, userId, account, csvImporter, imageImporter, detectionService);
 
             var importSessionHash = GenerateImportSessionHash(file.FileName, account);
             AssignImportSessionToTransactions(transactions, importSessionHash);
@@ -52,7 +54,7 @@ public static class ImportApi
             var enhancementResults = await ProcessEnhancementsAsync(
                 enhancementService, transactions, account, userId, importSessionHash);
 
-            var result = CreateImportResult(importResult, importSessionHash, enhancementResults);
+            var result = CreateImportResult(importResult, importSessionHash, enhancementResults, detectionResult);
 
             return TypedResults.Ok(result);
         }
@@ -118,35 +120,48 @@ public static class ImportApi
         }
     }
 
-    private static async Task<(ImportResult, List<Transaction>)> ProcessFileAsync(
+    private static async Task<(ImportResult, List<Transaction>, CsvStructureDetectionResult?)> ProcessFileAsync(
         Stream stream, string fileName, string userId, string account,
-        CsvImporter csvImporter, IImageImporter imageImporter)
+        CsvImporter csvImporter, IImageImporter imageImporter, ICsvStructureDetector detectionService)
     {
         var fileExtension = Path.GetExtension(fileName).ToLowerInvariant();
         return fileExtension switch
         {
-            ".csv" => await ProcessCsvFileAsync(stream, fileName, userId, account, csvImporter),
+            ".csv" => await ProcessCsvFileAsync(stream, fileName, userId, account, csvImporter, detectionService),
             ".png" or ".jpg" or ".jpeg" => await ProcessImageFileAsync(stream, fileName, userId, account, imageImporter),
             _ => throw new InvalidOperationException("Unsupported file type")
         };
     }
 
-    private static async Task<(ImportResult, List<Transaction>)> ProcessCsvFileAsync(
+    private static async Task<(ImportResult, List<Transaction>, CsvStructureDetectionResult?)> ProcessCsvFileAsync(
         Stream stream, string fileName, string userId, string account,
-        CsvImporter csvImporter)
+        CsvImporter csvImporter, ICsvStructureDetector detectionService)
     {
-        var (importResult, transactions) = await csvImporter.ParseCsvAsync(stream, fileName, userId, account);
+        var detectionResult = await detectionService.DetectStructureAsync(stream);
 
-        return (importResult, transactions);
+        if (detectionResult.ConfidenceScore < 85)
+        {
+            var errorMessage = detectionResult.DetectionMethod == DetectionMethod.AI
+                ? "Unable to automatically detect CSV structure using AI analysis. The file format may be too complex or non-standard. Please ensure your CSV contains Date, Description, and Amount columns with recognizable headers."
+                : "Unable to automatically detect CSV structure using pattern matching. Please ensure your CSV file follows a standard banking format with clear column headers (Date, Description, Amount).";
+
+            throw new InvalidOperationException(errorMessage);
+        }
+
+        stream.Position = 0; // Reset stream position
+        var (importResult, transactions) = await csvImporter.ParseCsvAsync(stream, fileName, userId, account, detectionResult);
+
+        return (importResult, transactions, detectionResult);
     }
 
-    private static async Task<(ImportResult, List<Transaction>)> ProcessImageFileAsync(
+
+    private static async Task<(ImportResult, List<Transaction>, CsvStructureDetectionResult?)> ProcessImageFileAsync(
         Stream stream, string fileName, string userId, string account,
         IImageImporter imageImporter)
     {
         var (importResult, transactions) = await imageImporter.ProcessImageAsync(stream, fileName, userId, account);
 
-        return (importResult, transactions);
+        return (importResult, transactions, null);
     }
 
     private static string GenerateImportSessionHash(string fileName, string account)
@@ -216,20 +231,21 @@ public static class ImportApi
         }).ToList();
     }
 
-    private static ImportResult CreateImportResult(
-        ImportResult originalResult, string importSessionHash,
-        List<TransactionEnhancementResult> enhancementResults)
+    private static ImportResult CreateImportResult(ImportResult baseResult, string sessionHash,
+        List<TransactionEnhancementResult> enhancementResults, CsvStructureDetectionResult? detectionResult)
     {
         return new ImportResult
         {
-            TotalRows = originalResult.TotalRows,
-            ImportedCount = originalResult.ImportedCount,
-            FailedCount = originalResult.FailedCount,
-            Errors = originalResult.Errors,
-            SourceFile = originalResult.SourceFile,
-            ImportedAt = originalResult.ImportedAt,
-            ImportSessionHash = importSessionHash,
-            Enhancements = enhancementResults
+            SourceFile = baseResult.SourceFile,
+            ImportedAt = baseResult.ImportedAt,
+            ImportedCount = baseResult.ImportedCount,
+            FailedCount = baseResult.FailedCount,
+            TotalRows = baseResult.TotalRows,
+            Errors = baseResult.Errors,
+            ImportSessionHash = sessionHash,
+            Enhancements = enhancementResults,
+            DetectionMethod = detectionResult?.DetectionMethod.ToString(),
+            DetectionConfidence = detectionResult?.ConfidenceScore ?? 0
         };
     }
 }
