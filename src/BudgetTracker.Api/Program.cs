@@ -63,7 +63,8 @@ builder.Services.AddScoped<CsvImporter>();
 builder.Services.Configure<AzureAiConfiguration>(
     builder.Configuration.GetSection(AzureAiConfiguration.SectionName));
 
-// Register AI services
+// Azure OpenAI services
+builder.Services.AddScoped<IAzureOpenAIClientFactory, AzureOpenAIClientFactory>();
 builder.Services.AddScoped<IAzureChatService, AzureChatService>();
 builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
 
