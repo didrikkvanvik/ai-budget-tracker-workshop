@@ -6,6 +6,7 @@ using BudgetTracker.Api.Features.Transactions;
 using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
 using BudgetTracker.Api.Features.Transactions.Import.Detection;
+using BudgetTracker.Api.Features.Intelligence.Search;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,7 +50,8 @@ builder.Services.AddSwaggerGen(c =>
 
 // Add Entity Framework
 builder.Services.AddDbContext<BudgetTrackerContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+        o => o.UseVector()));
 
 // Add import services
 // Add CSV detection services
@@ -66,7 +68,15 @@ builder.Services.Configure<AzureAiConfiguration>(
 // Azure OpenAI services
 builder.Services.AddScoped<IAzureOpenAIClientFactory, AzureOpenAIClientFactory>();
 builder.Services.AddScoped<IAzureChatService, AzureChatService>();
+
+// Register TransactionEnhancer with all its dependencies
 builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
+
+// Register embedding service for vector generation
+builder.Services.AddScoped<IAzureEmbeddingService, AzureEmbeddingService>();
+
+// Register background service for automatic embedding generation
+builder.Services.AddHostedService<EmbeddingBackgroundService>();
 
 // Add Auth with multiple schemes
 builder.Services.AddAuthorization(options =>

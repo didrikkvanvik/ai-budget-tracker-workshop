@@ -10,12 +10,20 @@ public class TransactionEnhancer : ITransactionEnhancer
 {
     private readonly IAzureChatService _chatService;
     private readonly ILogger<TransactionEnhancer> _logger;
+    private readonly BudgetTrackerContext _context; // Add database context
+
+    // RAG Configuration Constants
+    private const int DefaultContextLimit = 25; // Number of context transactions to retrieve
+    private const int ContextWindowDays = 365;  // Time window for context retrieval
+
     public TransactionEnhancer(
         IAzureChatService chatService,
-        ILogger<TransactionEnhancer> logger)
+        ILogger<TransactionEnhancer> logger,
+        BudgetTrackerContext context) // Inject database context
     {
         _chatService = chatService;
         _logger = logger;
+        _context = context;
     }
 
     public async Task<List<EnhancedTransactionDescription>> EnhanceDescriptionsAsync(
@@ -31,14 +39,22 @@ public class TransactionEnhancer : ITransactionEnhancer
 
         try
         {
-            var systemPrompt = CreateEnhancedSystemPrompt();
+            // Always retrieve recent transactions for context (empty list if none exist)
+            // Exclude current import session to avoid using uncategorized transactions as context
+            var contextTransactions = await GetRecentTransactionsAsync(userId, account, DefaultContextLimit, currentImportSessionHash);
+
+            _logger.LogInformation("Retrieved {ContextCount} context transactions for account {Account}",
+                contextTransactions.Count, account);
+
+            // Always create enhanced system prompt with available context
+            var systemPrompt = CreateEnhancedSystemPrompt(contextTransactions);
             var userPrompt = CreateUserPrompt(descriptions);
 
             var content = await _chatService.CompleteChatAsync(systemPrompt, userPrompt);
             var results = ParseEnhancedDescriptions(content, descriptions);
 
             _logger.LogInformation("AI processing completed in {ProcessingTime}ms", stopwatch.ElapsedMilliseconds);
-
+            
             return results;
         }
         catch (Exception ex)
@@ -53,39 +69,74 @@ public class TransactionEnhancer : ITransactionEnhancer
         }
     }
 
-    private static string CreateEnhancedSystemPrompt()
+    private async Task<List<Transaction>> GetRecentTransactionsAsync(
+        string userId,
+        string account,
+        int limit,
+        string? excludeImportSessionHash = null)
     {
-        return """
-            You are a transaction enhancement and categorization assistant. Your job is to clean up messy bank transaction descriptions and suggest appropriate spending categories.
+        var cutoffDate = DateTime.UtcNow.AddDays(-ContextWindowDays);
+
+        var query = _context.Transactions
+            .Where(t => t.UserId == userId && t.Account == account && t.Date >= cutoffDate)
+            .Where(t => !string.IsNullOrEmpty(t.Category)); // Only include categorized transactions
+
+        // Exclude current import session to avoid using uncategorized transactions as context
+        if (!string.IsNullOrEmpty(excludeImportSessionHash))
+        {
+            query = query.Where(t => t.ImportSessionHash != excludeImportSessionHash);
+        }
+
+        return await query
+            .OrderByDescending(t => t.Date)
+            .Take(limit)
+            .ToListAsync();
+    }
+
+    private string CreateEnhancedSystemPrompt(List<Transaction> contextTransactions)
+    {
+        var basePrompt = """
+            You are a transaction categorization assistant. Your job is to clean up messy bank transaction descriptions and make them more readable and meaningful for users.
 
             Guidelines:
             1. Transform cryptic merchant codes and bank jargon into clear, readable descriptions
             2. Remove unnecessary reference numbers, codes, and technical identifiers
             3. Identify the actual merchant or service provider
-            4. Suggest appropriate spending categories based on the merchant type and transaction purpose
+            4. Suggest appropriate spending categories when possible
             5. Maintain accuracy - don't invent information not present in the original
+            """;
+
+        if (contextTransactions.Any())
+        {
+            var contextSection = "\n\nHISTORICAL CONTEXT for this account:\n";
+            contextSection += string.Join("\n", contextTransactions.Select(t =>
+                $"- \"{t.Description}\" → Amount: {t.Amount:C} → Category: \"{t.Category}\""));
+
+            contextSection += "\n\nUse these patterns to inform your categorization decisions for new transactions.";
+
+            basePrompt += contextSection;
+        }
+        
+        basePrompt += """
 
             Examples:
-            - "AMZN MKTP US*123456789" → "Amazon Marketplace Purchase" (Category: Shopping)
-            - "STARBUCKS COFFEE #1234" → "Starbucks Coffee" (Category: Food & Drink)
-            - "SHELL OIL #4567" → "Shell Gas Station" (Category: Gas & Fuel)
-            - "DD VODAFONE PORTU 222111000" → "Vodafone Portugal - Direct Debit" (Category: Utilities)
-            - "COMPRA 0000 TEMU.COM DUBLIN" → "Temu Online Purchase" (Category: Shopping)
-            - "TRF MB WAY P/ Manuel Silva" → "MB WAY Transfer to Manuel Silva" (Category: Transfer)
-
-            Common categories to use:
-            - Shopping, Groceries, Food & Drink, Entertainment, Gas & Fuel
-            - Utilities, Transportation, Healthcare, Transfer, Cash & ATM
-            - Technology, Subscriptions, Travel, Education, Other
+            - "AMZN MKTP US*123456789" → "Amazon Marketplace Purchase"
+            - "STARBUCKS COFFEE #1234" → "Starbucks Coffee"
+            - "SHELL OIL #4567" → "Shell Gas Station"
+            - "DD VODAFONE PORTU 222111000 PT00110011" → "Vodafone Portugal - Direct Debit"
+            - "COMPRA 0000 TEMU.COM DUBLIN" → "Temu Online Purchase"
+            - "TRF MB WAY P/ Manuel Silva" → "MB WAY Transfer to Manuel Silva"
 
             Respond with a JSON array where each object has:
             - "originalDescription": the input description
             - "enhancedDescription": the cleaned description
-            - "suggestedCategory": appropriate category from the list above
-            - "confidenceScore": number between 0-1 indicating confidence in both enhancement and categorization
+            - "suggestedCategory": optional category (e.g., "Groceries", "Entertainment", "Transportation", "Utilities", "Shopping", "Food & Drink", "Gas & Fuel", "Transfer")
+            - "confidenceScore": number between 0-1 indicating confidence in the enhancement
 
-            Be conservative with confidence scores - only use high scores (>0.8) when you're very certain about the merchant identification and category.
+            Be conservative with confidence scores - only use high scores (>0.8) when you're very certain about the merchant identification.
             """;
+
+        return basePrompt;
     }
 
     private static string CreateUserPrompt(List<string> descriptions)

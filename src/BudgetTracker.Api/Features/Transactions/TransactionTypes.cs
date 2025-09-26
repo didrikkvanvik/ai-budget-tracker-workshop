@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using BudgetTracker.Api.Auth;
+using Pgvector; // Add pgvector reference
 
 namespace BudgetTracker.Api.Features.Transactions;
 
@@ -41,8 +42,13 @@ public class Transaction
     [Required]
     public string UserId { get; set; } = string.Empty;
 
-    [MaxLength(50)]
+    [MaxLength(32)]
     public string? ImportSessionHash { get; set; }
+
+    /// <summary>
+    /// Vector embedding for semantic search (1536 dimensions for text-embedding-3-small)
+    /// </summary>
+    public Vector? Embedding { get; set; } // Add vector embedding property
 }
 
 public class TransactionDto
