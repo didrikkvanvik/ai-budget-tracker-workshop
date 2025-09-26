@@ -50,8 +50,9 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<BudgetTrackerContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add CSV Import Service
+// Add import services
 builder.Services.AddScoped<CsvImporter>();
+builder.Services.AddScoped<IImageImporter, ImageImporter>();
 
 // Configure Azure AI
 builder.Services.Configure<AzureAiConfiguration>(

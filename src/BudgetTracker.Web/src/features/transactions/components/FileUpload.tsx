@@ -20,14 +20,13 @@ function FileUpload({ className = '' }: FileUploadProps) {
   const [account, setAccount] = useState('');
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [currentStep, setCurrentStep] = useState<Step>('upload');
-  const [currentPhase, setCurrentPhase] = useState<'uploading' | 'detecting' | 'parsing' | 'converting' | 'extracting' | 'enhancing' | 'complete'>('uploading');
+  const [currentPhase, setCurrentPhase] = useState<'uploading' | 'detecting' | 'parsing' | 'extracting' | 'enhancing' | 'complete'>('uploading');
   const [minConfidenceScore, setMinConfidenceScore] = useState(0.7);
   const [enhanceResult, setEnhanceResult] = useState<EnhanceImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   useEffect(() => {
     // Fetch XSRF token when component mounts to enable API calls
@@ -42,14 +41,18 @@ function FileUpload({ className = '' }: FileUploadProps) {
   }, []);
 
   const validateFile = (file: File): string | null => {
+    const validExtensions = ['.csv', '.png', '.jpg', '.jpeg'];
     const fileName = file.name.toLowerCase();
 
-    if (!fileName.endsWith('.csv')) {
-      return 'Please select a CSV file';
+    if (!validExtensions.some(ext => fileName.endsWith(ext))) {
+      return 'Please select a CSV file or bank statement image (PNG, JPG, JPEG)';
     }
-    if (file.size > MAX_FILE_SIZE) {
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
       return 'File size must be less than 10MB';
     }
+
     return null;
   };
 
@@ -109,18 +112,21 @@ function FileUpload({ className = '' }: FileUploadProps) {
       formData.append('file', selectedFile);
       formData.append('account', account.trim());
 
+      // Determine processing phase based on file type
+      const isImage = selectedFile.name.toLowerCase().match(/\.(png|jpg|jpeg)$/);
+
       const result = await transactionsApi.importTransactions({
         formData,
         onUploadProgress: (progressEvent) => {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadProgress(progress);
 
-          // Update phase based on progress for CSV processing
+          // Update phase based on progress and file type
           if (progress < 20) {
             setCurrentPhase('uploading');
           } else if (progress < 60) {
-            setCurrentPhase('detecting');
-          } else if (progress < 85) {
+            setCurrentPhase(isImage ? 'extracting' : 'detecting');
+          } else if (progress < 85 && !isImage) {
             setCurrentPhase('parsing');
           } else if (progress < 100) {
             setCurrentPhase('enhancing');
@@ -133,12 +139,14 @@ function FileUpload({ className = '' }: FileUploadProps) {
       setImportResult(result);
       setCurrentStep('imported');
 
-      showSuccess(`Successfully imported ${result.importedCount} transactions with AI description enhancements ready for review`);
+      showSuccess(
+        `Successfully imported ${result.importedCount} transactions from ${getFileTypeLabel(selectedFile.name).toLowerCase()} with AI description enhancements ready for review`
+      );
     } catch (error) {
       console.error('Import error:', error);
 
       // Extract error message from the response
-      let errorMessage = 'Failed to import the CSV file';
+      let errorMessage = 'Failed to import the file';
       if (error && typeof error === 'object' && 'message' in error) {
         errorMessage = (error as Error).message;
       }
@@ -163,9 +171,6 @@ function FileUpload({ className = '' }: FileUploadProps) {
     }
   }, []);
 
-  const handleRetryImport = useCallback(() => {
-    handleImport();
-  }, [handleImport]);
 
   const handleEnhance = useCallback(async (applyEnhancements: boolean) => {
     if (!importResult) return;
@@ -211,6 +216,43 @@ function FileUpload({ className = '' }: FileUploadProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getFileTypeIcon = (fileName: string) => {
+    const name = fileName.toLowerCase();
+    if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+      return '🖼️'; // Image icon
+    }
+    return '📊'; // CSV/spreadsheet icon
+  };
+
+  const getFileTypeLabel = (fileName: string) => {
+    const name = fileName.toLowerCase();
+    if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+      return 'Bank Statement Image';
+    }
+    return 'CSV Bank Statement';
+  };
+
+  const getPhaseDescription = (phase: string, fileName: string): string => {
+    const isImage = fileName.toLowerCase().match(/\.(png|jpg|jpeg)$/);
+
+    switch (phase) {
+      case 'uploading':
+        return `Uploading ${isImage ? 'bank statement image' : 'CSV file'}...`;
+      case 'detecting':
+        return isImage ? 'Preparing image for analysis...' : 'Detecting CSV structure...';
+      case 'parsing':
+        return 'Parsing CSV data...';
+      case 'extracting':
+        return 'Extracting transactions from image using AI...';
+      case 'enhancing':
+        return 'Enhancing transaction descriptions with AI...';
+      case 'complete':
+        return 'Import completed successfully!';
+      default:
+        return 'Processing...';
+    }
+  };
+
   return (
     <div className={`space-y-8 ${className}`}>
       {/* Step Indicator */}
@@ -254,7 +296,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.png,.jpg,.jpeg"
               onChange={handleFileInputChange}
               className="hidden"
             />
@@ -310,11 +352,11 @@ function FileUpload({ className = '' }: FileUploadProps) {
               <div className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0 p-2 bg-green-100 rounded-xl">
-                    <span className="text-green-600 text-lg">📊</span>
+                    <span className="text-green-600 text-lg">{getFileTypeIcon(selectedFile.name)}</span>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{selectedFile.name}</p>
-                    <p className="text-xs text-gray-600">CSV Bank Statement • {formatFileSize(selectedFile.size)}</p>
+                    <p className="text-xs text-gray-600">{getFileTypeLabel(selectedFile.name)} • {formatFileSize(selectedFile.size)}</p>
                   </div>
                 </div>
 
@@ -367,11 +409,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
                       <>
                         <LoadingSpinner size="sm" />
                         <span className="ml-2">
-                          {currentPhase === 'uploading' ? 'Uploading file...' :
-                            currentPhase === 'detecting' ? 'Detecting CSV structure...' :
-                              currentPhase === 'parsing' ? 'Parsing transactions...' :
-                                currentPhase === 'enhancing' ? 'Enhancing with AI...' :
-                                  'Finalizing...'}
+                          {getPhaseDescription(currentPhase, selectedFile.name)}
                         </span>
                       </>
                     ) : (
@@ -388,11 +426,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
             <div className="space-y-2">
               <div className="flex justify-between text-sm font-medium">
                 <span className="text-gray-700">
-                  {currentPhase === 'uploading' ? 'Uploading file...' :
-                    currentPhase === 'detecting' ? 'Processing CSV...' :
-                      currentPhase === 'parsing' ? 'Parsing transactions...' :
-                        currentPhase === 'enhancing' ? 'Enhancing with AI...' :
-                          'Finalizing...'}
+                  {selectedFile ? getPhaseDescription(currentPhase, selectedFile.name) : 'Processing...'}
                 </span>
                 <span className="text-blue-600">{uploadProgress}%</span>
               </div>

@@ -27,10 +27,10 @@ public static class ImportApi
 
     private static async Task<Results<Ok<ImportResult>, BadRequest<string>>> ImportAsync(
         IFormFile file, [FromForm] string account,
-        CsvImporter csvImporter, ITransactionEnhancer enhancer,
-        BudgetTrackerContext context, ClaimsPrincipal claimsPrincipal)
+        CsvImporter csvImporter, IImageImporter imageImporter, BudgetTrackerContext context,
+        ITransactionEnhancer enhancementService, ClaimsPrincipal claimsPrincipal)
     {
-        var validationResult = ValidateFileInput(file, account);
+        var validationResult = ValidateFileInput(file);
         if (validationResult != null)
         {
             return validationResult;
@@ -39,50 +39,26 @@ public static class ImportApi
         try
         {
             var userId = claimsPrincipal.GetUserId();
+            await using var stream = file.OpenReadStream();
 
-            var sessionHash = GenerateSessionHash(file.FileName, DateTime.UtcNow);
+            var (importResult, transactions) = await ProcessFileAsync(
+                stream, file.FileName, userId, account, csvImporter, imageImporter);
 
-            using var stream = file.OpenReadStream();
-            var (result, transactions) = await csvImporter.ParseCsvAsync(stream, file.FileName, userId, account);
+            var importSessionHash = GenerateImportSessionHash(file.FileName, account);
+            AssignImportSessionToTransactions(transactions, importSessionHash);
 
-            if (transactions.Any())
-            {
-                var descriptions = transactions.Select(t => t.Description).Distinct().ToList();
+            await SaveTransactionsAsync(context, transactions);
 
-                var enhancedDescriptions = await enhancer.EnhanceDescriptionsAsync(
-                    descriptions, account, userId, sessionHash);
+            var enhancementResults = await ProcessEnhancementsAsync(
+                enhancementService, transactions, account, userId, importSessionHash);
 
-                foreach (var transaction in transactions)
-                {
-                    var enhancement = enhancedDescriptions.FirstOrDefault(e =>
-                        e.OriginalDescription == transaction.Description);
-
-                    if (enhancement != null)
-                    {
-                        transaction.Description = enhancement.EnhancedDescription;
-                        if (!string.IsNullOrEmpty(enhancement.SuggestedCategory))
-                        {
-                            transaction.Category = enhancement.SuggestedCategory;
-                        }
-                    }
-
-                    transaction.ImportSessionHash = sessionHash;
-                }
-
-                await context.Transactions.AddRangeAsync(transactions);
-                await context.SaveChangesAsync();
-
-                var enhancementResults = await ProcessEnhancementsAsync(
-                    enhancer, transactions, account, userId, sessionHash);
-
-                result = CreateImportResult(result, sessionHash, enhancementResults);
-            }
+            var result = CreateImportResult(importResult, importSessionHash, enhancementResults);
 
             return TypedResults.Ok(result);
         }
         catch (Exception ex)
         {
-            return TypedResults.BadRequest($"Import failed: {ex.Message}");
+            return TypedResults.BadRequest(ex.Message);
         }
     }
 
@@ -142,33 +118,80 @@ public static class ImportApi
         }
     }
 
-    private static string GenerateSessionHash(string fileName, DateTime timestamp)
+    private static async Task<(ImportResult, List<Transaction>)> ProcessFileAsync(
+        Stream stream, string fileName, string userId, string account,
+        CsvImporter csvImporter, IImageImporter imageImporter)
     {
-        var input = $"{fileName}_{timestamp:yyyyMMddHHmmss}_{Guid.NewGuid()}";
+        var fileExtension = Path.GetExtension(fileName).ToLowerInvariant();
+        return fileExtension switch
+        {
+            ".csv" => await ProcessCsvFileAsync(stream, fileName, userId, account, csvImporter),
+            ".png" or ".jpg" or ".jpeg" => await ProcessImageFileAsync(stream, fileName, userId, account, imageImporter),
+            _ => throw new InvalidOperationException("Unsupported file type")
+        };
+    }
+
+    private static async Task<(ImportResult, List<Transaction>)> ProcessCsvFileAsync(
+        Stream stream, string fileName, string userId, string account,
+        CsvImporter csvImporter)
+    {
+        var (importResult, transactions) = await csvImporter.ParseCsvAsync(stream, fileName, userId, account);
+
+        return (importResult, transactions);
+    }
+
+    private static async Task<(ImportResult, List<Transaction>)> ProcessImageFileAsync(
+        Stream stream, string fileName, string userId, string account,
+        IImageImporter imageImporter)
+    {
+        var (importResult, transactions) = await imageImporter.ProcessImageAsync(stream, fileName, userId, account);
+
+        return (importResult, transactions);
+    }
+
+    private static string GenerateImportSessionHash(string fileName, string account)
+    {
+        var input = $"{fileName}_{account}_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid()}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToHexString(hash)[..12];
     }
 
-    private static BadRequest<string>? ValidateFileInput(IFormFile file, string account)
+    private static void AssignImportSessionToTransactions(List<Transaction> transactions, string importSessionHash)
+    {
+        foreach (var transaction in transactions)
+        {
+            transaction.ImportSessionHash = importSessionHash;
+        }
+    }
+
+    private static async Task SaveTransactionsAsync(BudgetTrackerContext context, List<Transaction> transactions)
+    {
+        if (transactions.Any())
+        {
+            await context.Transactions.AddRangeAsync(transactions);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static BadRequest<string>? ValidateFileInput(IFormFile file)
     {
         if (file == null || file.Length == 0)
         {
-            return TypedResults.BadRequest("No file uploaded");
+            return TypedResults.BadRequest("Please select a valid file.");
         }
 
-        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+        const int maxFileSize = 10 * 1024 * 1024; // 10MB
+        if (file.Length > maxFileSize)
         {
-            return TypedResults.BadRequest("Only CSV files are supported");
+            return TypedResults.BadRequest("File size must be less than 10MB.");
         }
 
-        if (file.Length > 10 * 1024 * 1024) // 10MB limit
-        {
-            return TypedResults.BadRequest("File size exceeds 10MB limit");
-        }
+        var allowedExtensions = new[] { ".csv", ".png", ".jpg", ".jpeg" };
+        var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-        if (string.IsNullOrWhiteSpace(account))
+        if (!allowedExtensions.Contains(fileExtension))
         {
-            return TypedResults.BadRequest("Account name is required");
+            return TypedResults.BadRequest("Only CSV files and images (PNG, JPG, JPEG) are supported.");
         }
 
         return null;

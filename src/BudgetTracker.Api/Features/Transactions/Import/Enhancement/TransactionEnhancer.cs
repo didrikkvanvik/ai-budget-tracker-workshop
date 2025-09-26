@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using BudgetTracker.Api.Infrastructure;
+using BudgetTracker.Api.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace BudgetTracker.Api.Features.Transactions.Import.Enhancement;
@@ -100,7 +100,7 @@ public class TransactionEnhancer : ITransactionEnhancer
         try
         {
             var enhancedDescriptions = JsonSerializer.Deserialize<List<EnhancedTransactionDescription>>(
-                ExtractJsonFromCodeBlock(content), new JsonSerializerOptions
+                content.ExtractJsonFromCodeBlock(), new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
@@ -124,15 +124,4 @@ public class TransactionEnhancer : ITransactionEnhancer
         }).ToList();
     }
 
-    private static string ExtractJsonFromCodeBlock(string input)
-    {
-        var match = Regex.Match(input, @"```json\s*([\s\S]*?)\s*```");
-
-        if (match.Success)
-        {
-            return match.Groups[1].Value;
-        }
-
-        throw new FormatException("Could not extract JSON from the input string");
-    }
 }
