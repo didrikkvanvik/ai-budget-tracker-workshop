@@ -7,6 +7,7 @@ using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
 using BudgetTracker.Api.Features.Transactions.Import.Detection;
 using BudgetTracker.Api.Features.Intelligence.Search;
+using BudgetTracker.Api.Features.Intelligence.Query;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +75,10 @@ builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
 
 // Register embedding service for vector generation
 builder.Services.AddScoped<IAzureEmbeddingService, AzureEmbeddingService>();
+
+// Register semantic search and query services
+builder.Services.AddScoped<ISemanticSearchService, SemanticSearchService>();
+builder.Services.AddScoped<IQueryAssistantService, AzureAiQueryAssistantService>();
 
 // Register background service for automatic embedding generation
 builder.Services.AddHostedService<EmbeddingBackgroundService>();
@@ -168,6 +173,7 @@ app
     .MapGroup("/api")
     .MapAntiForgeryEndpoints()
     .MapAuthEndpoints()
-    .MapTransactionEndpoints();
+    .MapTransactionEndpoints()
+    .MapQueryEndpoints();
 
 app.Run();
