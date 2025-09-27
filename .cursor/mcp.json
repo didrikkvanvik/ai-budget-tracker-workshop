@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "budget-tracker": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/BudgetTracker.McpServer/BudgetTracker.McpServer.csproj"
+      ],
+      "env": {
+        "DOTNET_ENVIRONMENT": "Development",
+        "BUDGET_TRACKER_API_KEY": "bt_dev_key_admin",
+        "BudgetTracker__ApiBaseUrl": "http://localhost:5295"
+      }
+    }
+  }
+}

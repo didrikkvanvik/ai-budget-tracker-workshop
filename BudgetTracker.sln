@@ -11,16 +11,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{CC9E823A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetTracker.Api.Tests", "tests\BudgetTracker.Api.Tests\BudgetTracker.Api.Tests.csproj", "{B51771AE-5E60-45AB-BC3B-1A23DE5FEAA4}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs/tasks", "docs/tasks", "{ABBA3EF7-583F-4168-B09D-658BE40EF34D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetTracker.McpServer", "src\BudgetTracker.McpServer\BudgetTracker.McpServer.csproj", "{0FBEFE1D-F859-4513-8CCA-A8102C20F961}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs/tasks", "docs/tasks", "{640D0439-8D87-4C4E-98D6-073BC1AEC01D}"
 	ProjectSection(SolutionItems) = preProject
-		docs\tasks\043-rag-natural-language-query.md = docs\tasks\043-rag-natural-language-query.md
+		docs\tasks\051-analytics-insights.md = docs\tasks\051-analytics-insights.md
 		docs\tasks\062-mcp-server-prompts.md = docs\tasks\062-mcp-server-prompts.md
-		docs\tasks\061-mcp-server.md = docs\tasks\061-mcp-server.md
 		docs\tasks\054-add-category-spending-tool.md = docs\tasks\054-add-category-spending-tool.md
 		docs\tasks\053-agentic-tools.md = docs\tasks\053-agentic-tools.md
+		docs\tasks\061-mcp-server.md = docs\tasks\061-mcp-server.md
 		docs\tasks\052-recommendation-agent.md = docs\tasks\052-recommendation-agent.md
-		docs\tasks\051-analytics-insights.md = docs\tasks\051-analytics-insights.md
 		docs\tasks\044-rag-natural-language-query-web.md = docs\tasks\044-rag-natural-language-query-web.md
+		docs\tasks\043-rag-natural-language-query.md = docs\tasks\043-rag-natural-language-query.md
 		docs\tasks\042-rag-semantic-search.md = docs\tasks\042-rag-semantic-search.md
 		docs\tasks\031-add-helicone.md = docs\tasks\031-add-helicone.md
 		docs\tasks\022-smart-csv-detection.md = docs\tasks\022-smart-csv-detection.md
@@ -72,6 +74,18 @@ Global
 		{B51771AE-5E60-45AB-BC3B-1A23DE5FEAA4}.Release|x64.Build.0 = Release|Any CPU
 		{B51771AE-5E60-45AB-BC3B-1A23DE5FEAA4}.Release|x86.ActiveCfg = Release|Any CPU
 		{B51771AE-5E60-45AB-BC3B-1A23DE5FEAA4}.Release|x86.Build.0 = Release|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Debug|x64.Build.0 = Debug|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Debug|x86.Build.0 = Debug|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Release|x64.ActiveCfg = Release|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Release|x64.Build.0 = Release|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Release|x86.ActiveCfg = Release|Any CPU
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -79,5 +93,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{E920EF3E-0222-4AE3-8C5B-7EA005C1C6A0} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{B51771AE-5E60-45AB-BC3B-1A23DE5FEAA4} = {CC9E823A-2403-4B52-915A-4ABA65486588}
+		{0FBEFE1D-F859-4513-8CCA-A8102C20F961} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

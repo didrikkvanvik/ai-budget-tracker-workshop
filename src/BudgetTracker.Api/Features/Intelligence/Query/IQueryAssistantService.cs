@@ -16,6 +16,5 @@ public class QueryResponse
 {
     public string Answer { get; set; } = string.Empty;
     public decimal? Amount { get; set; }
-    public TransactionDto? Transaction { get; set; }
     public List<TransactionDto>? Transactions { get; set; }
 }
