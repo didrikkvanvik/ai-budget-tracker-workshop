@@ -8,6 +8,8 @@ using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
 using BudgetTracker.Api.Features.Transactions.Import.Detection;
 using BudgetTracker.Api.Features.Intelligence.Search;
 using BudgetTracker.Api.Features.Intelligence.Query;
+using BudgetTracker.Api.Features.Analytics;
+using BudgetTracker.Api.Features.Analytics.Insights;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -82,6 +84,9 @@ builder.Services.AddScoped<IQueryAssistantService, AzureAiQueryAssistantService>
 
 // Register background service for automatic embedding generation
 builder.Services.AddHostedService<EmbeddingBackgroundService>();
+
+// Add analytics services
+builder.Services.AddScoped<IInsightsService, AzureAiInsightsService>();
 
 // Add Auth with multiple schemes
 builder.Services.AddAuthorization(options =>
@@ -174,6 +179,7 @@ app
     .MapAntiForgeryEndpoints()
     .MapAuthEndpoints()
     .MapTransactionEndpoints()
-    .MapQueryEndpoints();
+    .MapQueryEndpoints()
+    .MapAnalyticsEndpoints();
 
 app.Run();
