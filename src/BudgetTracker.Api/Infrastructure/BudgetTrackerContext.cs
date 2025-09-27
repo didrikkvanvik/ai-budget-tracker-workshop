@@ -1,5 +1,6 @@
 using BudgetTracker.Api.Auth;
 using BudgetTracker.Api.Features.Transactions;
+using BudgetTracker.Api.Features.Intelligence.Recommendations;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Pgvector.EntityFrameworkCore; // Add pgvector EF Core support
@@ -13,6 +14,7 @@ public class BudgetTrackerContext : IdentityDbContext<ApplicationUser>
     }
 
     public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<Recommendation> Recommendations => Set<Recommendation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
