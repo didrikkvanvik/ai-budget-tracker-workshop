@@ -22,8 +22,20 @@ builder.Logging.AddConsole(consoleLogOptions =>
 builder.Services.Configure<BudgetTrackerConfiguration>(
     builder.Configuration.GetSection("BudgetTracker"));
 
-// Add HTTP client for API calls
-builder.Services.AddHttpClient();
+// Add HTTP client for API calls with base address and API key
+builder.Services.AddHttpClient("BudgetTrackerApi", (serviceProvider, client) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IOptions<BudgetTrackerConfiguration>>();
+    var baseUrl = configuration.Value.ApiBaseUrl ?? "http://localhost:5295";
+    client.BaseAddress = new Uri(baseUrl);
+
+    // Configure API key from environment
+    var apiKey = Environment.GetEnvironmentVariable("BUDGET_TRACKER_API_KEY");
+    if (!string.IsNullOrEmpty(apiKey))
+    {
+        client.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+    }
+});
 
 // Add MCP server with tools
 builder.Services
@@ -36,31 +48,20 @@ builder.Services
 await builder.Build().RunAsync();
 
 [McpServerToolType]
-public static class BudgetTrackerTools
+public class BudgetTrackerTools
 {
     [McpServerTool, Description("Query recent transactions from your budget tracker")]
-    public static async Task<string> QueryTransactions(
+    public async Task<string> QueryTransactions(
         [Description("Natural language question about your transactions")]
         string question,
-        IServiceProvider serviceProvider)
+        IHttpClientFactory httpClientFactory)
     {
-        var httpClient = serviceProvider.GetRequiredService<HttpClient>();
-        var apiKey = Environment.GetEnvironmentVariable("BUDGET_TRACKER_API_KEY");
-
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            return "❌ API key not configured. Please set BUDGET_TRACKER_API_KEY environment variable.";
-        }
+        var httpClient = httpClientFactory.CreateClient("BudgetTrackerApi");
 
         try
         {
-            // Add API key to request headers
-            httpClient.DefaultRequestHeaders.Remove("X-API-Key");
-            httpClient.DefaultRequestHeaders.Add("X-API-Key", apiKey);
-
             // Call the Budget Tracker API query endpoint (authenticated)
-            var apiBaseUrl = GetApiBaseUrl(serviceProvider);
-            var response = await httpClient.PostAsJsonAsync($"{apiBaseUrl}/api/query/ask",
+            var response = await httpClient.PostAsJsonAsync("/api/query/ask",
                 new { Query = question });
 
             if (response.IsSuccessStatusCode)
@@ -68,14 +69,13 @@ public static class BudgetTrackerTools
                 var result = await response.Content.ReadAsStringAsync();
                 return result;
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
                 return "❌ Invalid API key. Please check your configuration.";
             }
-            else
-            {
-                return $"Error querying transactions: {response.StatusCode}";
-            }
+
+            return $"Error querying transactions: {response.StatusCode}";
         }
         catch (Exception ex)
         {
@@ -84,22 +84,16 @@ public static class BudgetTrackerTools
     }
 
     [McpServerTool, Description("Import transactions from a CSV file to your budget tracker")]
-    public static async Task<string> ImportTransactionsCsv(
+    public async Task<string> ImportTransactionsCsv(
         [Description("Base64-encoded CSV file content")]
         string csvContent,
         [Description("Original filename for tracking")]
         string fileName,
         [Description("Account name to associate with imported transactions")]
         string account,
-        IServiceProvider serviceProvider)
+        IHttpClientFactory httpClientFactory)
     {
-        var httpClient = serviceProvider.GetRequiredService<HttpClient>();
-        var apiKey = Environment.GetEnvironmentVariable("BUDGET_TRACKER_API_KEY");
-
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            return "❌ API key not configured. Please set BUDGET_TRACKER_API_KEY environment variable.";
-        }
+        var httpClient = httpClientFactory.CreateClient("BudgetTrackerApi");
 
         try
         {
@@ -121,24 +115,17 @@ public static class BudgetTrackerTools
             content.Add(csvStreamContent, "file", fileName);
             content.Add(new StringContent(account), "account");
 
-            // Add API key to request headers
-            httpClient.DefaultRequestHeaders.Remove("X-API-Key");
-            httpClient.DefaultRequestHeaders.Add("X-API-Key", apiKey);
-
             // Call the Budget Tracker API import endpoint
-            var apiBaseUrl = GetApiBaseUrl(serviceProvider);
-            var response = await httpClient.PostAsync($"{apiBaseUrl}/api/transactions/import", content);
+            var response = await httpClient.PostAsync("/api/transactions/import", content);
 
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadAsStringAsync();
                 return FormatImportResult(result, fileName, account);
             }
-            else
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                return $"Import failed: {error}";
-            }
+
+            var error = await response.Content.ReadAsStringAsync();
+            return $"Import failed: {error}";
         }
         catch (Exception ex)
         {
@@ -146,13 +133,7 @@ public static class BudgetTrackerTools
         }
     }
 
-    private static string GetApiBaseUrl(IServiceProvider serviceProvider)
-    {
-        var configuration = serviceProvider.GetRequiredService<IOptions<BudgetTrackerConfiguration>>();
-        return configuration.Value.ApiBaseUrl ?? "http://localhost:5295";
-    }
-
-    private static string FormatImportResult(string apiResponse, string fileName, string account)
+    private string FormatImportResult(string apiResponse, string fileName, string account)
     {
         try
         {
