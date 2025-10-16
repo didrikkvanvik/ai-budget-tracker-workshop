@@ -3,11 +3,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -29,7 +29,9 @@ builder.Services.AddHttpClient();
 builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
-    .WithToolsFromAssembly();
+    .WithToolsFromAssembly()
+    //.WithPromptsFromAssembly()
+    .WithPrompts<BudgetTrackerPrompts>();
 
 await builder.Build().RunAsync();
 
@@ -180,8 +182,19 @@ public static class BudgetTrackerTools
         catch
         {
             // If parsing fails, just return the raw response
-            return $"CSV Import completed.\n📁 File: {fileName}\n🏦 Account: {account}\n\nRaw API Response:\n{apiResponse}";
+            return
+                $"CSV Import completed.\n📁 File: {fileName}\n🏦 Account: {account}\n\nRaw API Response:\n{apiResponse}";
         }
+    }
+}
+
+[McpServerPromptType]
+public class BudgetTrackerPrompts
+{
+    [McpServerPrompt(Name = "Import"), Description("Import a csv file of transactions into the budget tracker")]
+    public ChatMessage Import([Description("Account name to import.")] string account)
+    {
+        return new(ChatRole.User, $"Import this csv file of transactions for account: {account}");
     }
 }
 
