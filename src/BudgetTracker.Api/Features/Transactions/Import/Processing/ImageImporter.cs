@@ -81,7 +81,8 @@ public class ImageImporter : IImageImporter
             )
         };
 
-        return await _chatService.CompleteChatAsync(messages);
+        var response = await _chatService.CompleteChatAsync(messages, null);
+        return response.Content[0].Text;
     }
 
     private string CreateTransactionExtractionPrompt()

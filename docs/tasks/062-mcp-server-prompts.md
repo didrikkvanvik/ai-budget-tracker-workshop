@@ -126,17 +126,53 @@ dotnet
 ```
 
 **Arguments:**
+
+> **Note**: Review and adjust the path based on your platform and workspace location.
+> - **Windows**: Use backslashes (`\`) instead of forward slashes: `src\BudgetTracker.McpServer\BudgetTracker.McpServer.csproj`
+> - **Paths with spaces**: Wrap the entire path in double quotes (`"`) if it contains spaces
+
+*Unix/Mac/Linux:*
 ```json
-["run", "--project", "src/BudgetTracker.McpServer/BudgetTracker.McpServer.csproj"]
+run --project src/BudgetTracker.McpServer/BudgetTracker.McpServer.csproj
+```
+
+*Windows:*
+```json
+run --project src\BudgetTracker.McpServer\BudgetTracker.McpServer.csproj
+```
+
+*Example with spaces (any platform):*
+```json
+run --project "src/Budget Tracker/BudgetTracker.McpServer/BudgetTracker.McpServer.csproj"
 ```
 
 **Environment Variables:**
-```json
-{
-  "DOTNET_ENVIRONMENT": "Development",
-  "BUDGET_TRACKER_API_KEY": "bt_mcp_key_2025_secure_static_api_key_for_ai_integration",
+
+> **Note**: The `BUDGET_TRACKER_API_KEY` needs to include your user ID. To obtain it:
+> 1. Start the Budget Tracker API and Web app
+> 2. Log in to the web application
+> 3. Open browser Developer Tools (F12) → Network tab
+> 4. Find the request to `/me` endpoint
+> 5. Copy your user ID from the response (e.g., `a1b2c3d4-e5f6-7890-abcd-ef1234567890`)
+> 6. Insert it into the API key in `appsettings.Development.json` at `StaticApiKeys`
+> 7. Use the complete key here
+>
+> **Example**: If your user ID is `a1b2c3d4-e5f6-7890-abcd-ef1234567890`, the key becomes:
+> ```
+      "key-for-mcp": {
+        "UserId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "Name": "Workshop Test User",
+        "Description": "API key for workshop testing"
+      }
+> ```
+> Where `key-for-mcp` is the key used for configuration.
+> ⚠️ **This is a hack for demo purposes only** - In production, use proper authentication mechanisms.
+> 8. Restart the api.
+
+Configure the environment variables (MCP Inspector):
+```
+  "BUDGET_TRACKER_API_KEY": "key-for-mcp"
   "BudgetTracker__ApiBaseUrl": "http://localhost:5295"
-}
 ```
 
 ### Test the Import Prompt

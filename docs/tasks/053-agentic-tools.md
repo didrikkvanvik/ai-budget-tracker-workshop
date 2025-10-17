@@ -20,9 +20,6 @@ In this step, you'll transform the recommendation engine from a batch-analysis s
 
 Before starting, ensure you completed:
 - Recommendation Agent System (052-recommendation-agent.md)
-- Analytics Insights (051-analytics-insights.md)
-- Semantic Search with RAG (044-rag-nlq-web.md)
-- Transaction management and categorization
 
 ---
 
@@ -35,21 +32,21 @@ Before starting, ensure you completed:
 
 ## Background: Batch Analysis vs Agentic Approach
 
-### Current System (Batch Analysis)
+### Current System (Simple AI Recommendations)
 
-The current recommendation engine follows a batch analysis pattern:
+The current recommendation system (from Step 052) uses a simple, single-pass approach:
 
-1. **Upfront Analysis**: Analyzes ALL transaction patterns in `AnalyzeTransactionPatternsAsync()`
-2. **Data Dump**: Serializes all patterns into a single large prompt
-3. **Single AI Call**: Gets back 3-5 recommendations in one shot
-4. **No Exploration**: AI cannot ask follow-up questions or dig deeper
+1. **Basic Statistics**: Gathers high-level stats via `GetBasicStatsAsync()` (total income, expenses, top categories)
+2. **Single Prompt**: Sends summary statistics to AI in one large prompt
+3. **Single AI Call**: Gets back 3-5 general recommendations in one shot via `GenerateSimpleRecommendationsAsync()`
+4. **No Exploration**: AI cannot query specific transactions or dig deeper into patterns
 
 **Limitations:**
-- ❌ Sends unnecessary data to AI (costs tokens)
-- ❌ No targeted investigation of specific patterns
+- ❌ AI only sees summary statistics, not actual transactions
+- ❌ No targeted investigation of specific spending patterns
 - ❌ Cannot adapt analysis based on discoveries
-- ❌ Limited explainability (can't see reasoning process)
-- ❌ Fixed analysis structure
+- ❌ Limited explainability (can't see AI's reasoning process)
+- ❌ Recommendations are general, not evidence-based
 
 ### New System (Agentic with Tool Calling)
 
@@ -70,7 +67,7 @@ The agentic system uses function calling for dynamic exploration:
 
 ---
 
-## Step 71.1: Define Tool Architecture
+## Step 53.1: Define Tool Architecture
 
 *Create the foundational abstractions for the tool system.*
 
@@ -109,7 +106,7 @@ public class ToolExecutionResult
 
 ---
 
-## Step 71.2: Implement SearchTransactions Tool
+## Step 53.2: Implement SearchTransactions Tool
 
 *Create the search tool that leverages existing semantic search.*
 
@@ -139,9 +136,9 @@ public class SearchTransactionsTool : IAgentTool
     public string Name => "SearchTransactions";
 
     public string Description =>
-        "Search transactions using natural language queries. Use this to find specific patterns, merchants, " +
-        "or transaction types. Examples: 'subscriptions', 'coffee shops', 'large purchases over $200', " +
-        "'weekend dining', 'late night orders'. Returns up to maxResults transactions with descriptions and amounts.";
+        "Search transactions using semantic search. Use this to find specific patterns, merchants, " +
+        "or transaction types. Examples: 'subscriptions', 'coffee shops', 'shopping', " +
+        "'dining'. Returns up to maxResults transactions with descriptions and amounts.";
 
     public BinaryData ParametersSchema => BinaryData.FromObjectAsJson(new
     {
@@ -232,7 +229,7 @@ public class SearchTransactionsTool : IAgentTool
 
 ---
 
-## Step 71.3: Create Tool Registry
+## Step 53.3: Create Tool Registry
 
 *Build a registry that manages all available tools.*
 
@@ -291,7 +288,7 @@ public class ToolRegistry : IToolRegistry
 
 ---
 
-## Step 71.4: Simplify Chat Service for Tool Support
+## Step 53.4: Simplify Chat Service for Tool Support
 
 *Modify the existing chat service to optionally support tools.*
 
@@ -394,13 +391,13 @@ public class AzureChatService : IAzureChatService
 
 ---
 
-## Step 71.5: Evolve RecommendationEngine with Agent Logic
+## Step 53.5: Evolve RecommendationAgent with Agent Logic
 
-*Add agent capabilities directly to the existing RecommendationEngine.*
+*Add agent capabilities directly to the existing RecommendationAgent.*
 
-Instead of creating a separate agent class, we'll incorporate the agentic workflow directly into `RecommendationEngine.GenerateRecommendationsAsync()`. This evolves the existing feature rather than creating new abstractions.
+Instead of creating a separate agent class, we'll incorporate the agentic workflow directly into `RecommendationAgent.GenerateRecommendationsAsync()`. This evolves the existing feature rather than creating new abstractions.
 
-**Update `src/BudgetTracker.Api/Features/Intelligence/Recommendations/RecommendationEngine.cs`:**
+**Update `src/BudgetTracker.Api/Features/Intelligence/Recommendations/RecommendationAgent.cs`:**
 
 Add the tool registry dependency:
 
@@ -408,13 +405,13 @@ Add the tool registry dependency:
 private readonly BudgetTrackerContext _context;
 private readonly IAzureChatService _chatService;
 private readonly IToolRegistry _toolRegistry;  // Add this
-private readonly ILogger<RecommendationEngine> _logger;
+private readonly ILogger<RecommendationAgent> _logger;
 
-public RecommendationEngine(
+public RecommendationAgent(
     BudgetTrackerContext context,
     IAzureChatService chatService,
     IToolRegistry toolRegistry,  // Add this
-    ILogger<RecommendationEngine> logger)
+    ILogger<RecommendationAgent> logger)
 {
     _context = context;
     _chatService = chatService;
@@ -423,41 +420,14 @@ public RecommendationEngine(
 }
 ```
 
-Replace the `GenerateRecommendationsAsync` method:
+Update the `GenerateRecommendationsAsync` method:
 
 ```csharp
 public async Task GenerateRecommendationsAsync(string userId)
 {
-    try
-    {
-        // 1. Check if we need to regenerate
-        var lastGenerated = await _context.Recommendations
-            .Where(r => r.UserId == userId)
-            .MaxAsync(r => (DateTime?)r.GeneratedAt);
+        // ...
 
-        var lastTransaction = await _context.Transactions
-            .Where(t => t.UserId == userId)
-            .MaxAsync(t => (DateTime?)t.Date);
-
-        if (lastGenerated.HasValue && lastTransaction.HasValue &&
-            lastGenerated > lastTransaction.Value.AddHours(-2))
-        {
-            _logger.LogInformation("Skipping generation for {UserId} - no new data", userId);
-            return;
-        }
-
-        // 2. Check minimum transaction count
-        var transactionCount = await _context.Transactions
-            .Where(t => t.UserId == userId)
-            .CountAsync();
-
-        if (transactionCount < 5)
-        {
-            _logger.LogInformation("Insufficient data for {UserId}", userId);
-            return;
-        }
-
-        // 3. Run agentic recommendation generation
+        // Run agentic recommendation generation
         var recommendations = await GenerateAgenticRecommendationsAsync(userId, maxIterations: 5);
 
         if (!recommendations.Any())
@@ -466,16 +436,7 @@ public async Task GenerateRecommendationsAsync(string userId)
             return;
         }
 
-        // 4. Store recommendations
-        await StoreRecommendationsAsync(userId, recommendations);
-
-        _logger.LogInformation("Generated {Count} recommendations for {UserId}",
-            recommendations.Count, userId);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Failed to generate recommendations for {UserId}", userId);
-    }
+        // ...
 }
 ```
 
@@ -766,8 +727,7 @@ private async Task StoreRecommendationsAsync(
         Priority = ai.Priority,
         GeneratedAt = DateTime.UtcNow,
         ExpiresAt = DateTime.UtcNow.AddDays(7),
-        Status = RecommendationStatus.Active,
-        DataHash = null
+        Status = RecommendationStatus.Active
     }).ToList();
 
     await _context.Recommendations.AddRangeAsync(newRecommendations);
@@ -775,21 +735,16 @@ private async Task StoreRecommendationsAsync(
 }
 ```
 
-Remove these methods (no longer needed):
-- `AnalyzeTransactionPatternsAsync`
-- All the pattern analysis methods (CalculateOverallStats, AnalyzeIncomeEvents, etc.)
-- `ComputeDataHash`
-
 **Key Points:**
-- Agent logic embedded directly in RecommendationEngine
-- No separate AgentContext or RecommendationAgent classes
+- Agent logic embedded directly in RecommendationAgent
+- No separate AgentContext classes
 - Uses local variables for conversation state
 - Simpler, more maintainable code
 - Same multi-turn agent loop behavior
 
 ---
 
-## Step 71.6: Register Services
+## Step 53.6: Register Services
 
 *Configure dependency injection for the tool system.*
 
@@ -800,23 +755,23 @@ Update `src/BudgetTracker.Api/Program.cs`:
 builder.Services.AddScoped<IAgentTool, SearchTransactionsTool>();
 builder.Services.AddScoped<IToolRegistry, ToolRegistry>();
 
-// The existing RecommendationEngine registration remains
+// The existing RecommendationAgent registration remains
 // It will now receive IToolRegistry through DI
 ```
 
 **Key Points:**
 - Only register tools and tool registry
 - No separate agent interface needed
-- RecommendationEngine already registered as `IRecommendationRepository`
+- RecommendationAgent already registered as `IRecommendationRepository`
 - Tools are auto-discovered via `IEnumerable<IAgentTool>`
 
 ---
 
-## Step 71.7: Test the Agentic System
+## Step 53.7: Test the Agentic System
 
 *Verify the agent's tool-calling capabilities.*
 
-### 71.7.1: Test Manual Trigger
+### 53.7.1: Test Manual Trigger
 
 Trigger recommendation generation manually:
 
@@ -826,7 +781,7 @@ POST http://localhost:5295/api/recommendations/generate
 X-API-Key: test-key-user1
 ```
 
-### 71.7.2: Monitor Agent Behavior
+### 53.7.2: Monitor Agent Behavior
 
 Watch the logs while the agent runs:
 
@@ -850,7 +805,7 @@ Agent completed after 3 iterations
 Generated 4 recommendations for test-user-1
 ```
 
-### 71.7.3: Verify Recommendations
+### 53.7.3: Verify Recommendations
 
 Get the generated recommendations:
 
@@ -866,7 +821,7 @@ X-API-Key: test-key-user1
 - More targeted and evidence-based
 - Example: "Found 3 streaming subscriptions: Netflix, Hulu, Disney+ totaling $42/month"
 
-### 71.7.4: Test Different Scenarios
+### 53.7.4: Test Different Scenarios
 
 Import different transaction patterns and see how the agent explores:
 
@@ -892,33 +847,8 @@ You've successfully built an autonomous AI agent with tool-calling capabilities!
 ✅ **SearchTransactions Tool**: Natural language transaction discovery
 ✅ **Tool Registry**: Automatic tool discovery and SDK integration
 ✅ **Function Calling**: Proper OpenAI .NET SDK implementation with flexible chat service
-✅ **Recommendation Engine**: Evolved with agent logic directly embedded (no separate agent classes)
+✅ **RecommendationAgent**: Evolved with agent logic directly embedded (no separate agent classes)
 ✅ **Multi-turn Agent Loop**: Autonomous reasoning with iteration control and tool execution
-
-### Key Improvements Over Batch System
-
-**Efficiency:**
-- 🎯 Queries only what's needed (2-4 targeted searches vs entire dataset)
-- 🎯 Reduces token costs by 60-80%
-- 🎯 Faster execution with focused queries
-
-**Intelligence:**
-- 🧠 Agent decides what to investigate
-- 🧠 Adapts searches based on findings
-- 🧠 Explores iteratively (not one-shot)
-
-**Explainability:**
-- 📊 Can trace exact searches made
-- 📊 See tool call chain in logs
-- 📊 Evidence-based recommendations
-
-### Example Agent Workflow
-
-```
-Iteration 1: SearchTransactions("subscriptions") → Finds Netflix, Spotify, Gym
-Iteration 2: SearchTransactions("streaming services") → Finds Netflix, Hulu, Disney+
-Iteration 3: Generate recommendations → "You have 4 streaming services..."
-```
 
 ### What's Next?
 

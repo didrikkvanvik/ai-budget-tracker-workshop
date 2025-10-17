@@ -90,7 +90,7 @@ The agent loop doesn't need modification:
 
 ---
 
-## Step 72.1: Implement GetCategorySpending Tool
+## Step 54.1: Implement GetCategorySpending Tool
 
 *Create the aggregation tool for category spending analysis.*
 
@@ -236,9 +236,9 @@ public class GetCategorySpendingTool : IAgentTool
             "last7days" => (now.AddDays(-7), now),
             "last30days" => (now.AddDays(-30), now),
             "last90days" => (now.AddDays(-90), now),
-            "thisMonth" => (new DateTime(now.Year, now.Month, 1), now),
-            "lastMonth" => (new DateTime(now.Year, now.Month, 1).AddMonths(-1),
-                           new DateTime(now.Year, now.Month, 1).AddDays(-1)),
+            "thisMonth" => (new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc), now),
+            "lastMonth" => (new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-1),
+                           new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(-1)),
             _ => (now.AddDays(-30), now)
         };
     }
@@ -250,10 +250,11 @@ public class GetCategorySpendingTool : IAgentTool
 - **Top merchants**: Provides context about where money is going
 - **Transaction count**: Shows frequency of spending
 - **Error handling**: Returns structured JSON even on failure
+- **DateTime Kind**: Explicitly specifies `DateTimeKind.Utc` when constructing DateTime objects to ensure compatibility with PostgreSQL's `timestamptz` type (which only accepts UTC timestamps)
 
 ---
 
-## Step 72.2: Register the Tool
+## Step 54.2: Register the Tool
 
 *Add the new tool to dependency injection - that's it!*
 
@@ -268,7 +269,7 @@ That's all you need! The registry will automatically discover it.
 
 ---
 
-## Step 72.3: Update System Prompt (Optional)
+## Step 54.3: Update System Prompt (Optional)
 
 *Let the agent know about the second tool.*
 
@@ -317,11 +318,11 @@ private static string CreateSystemPrompt()
 
 ---
 
-## Step 72.4: Test Tool Composition
+## Step 54.4: Test Tool Composition
 
 *See how the agent combines both tools autonomously.*
 
-### 72.4.1: Trigger Recommendation Generation
+### 54.4.1: Trigger Recommendation Generation
 
 ```http
 ### Trigger recommendation generation
@@ -329,7 +330,7 @@ POST http://localhost:5295/api/recommendations/generate
 X-API-Key: test-key-user1
 ```
 
-### 72.4.2: Monitor Agent Behavior
+### 54.4.2: Monitor Agent Behavior
 
 Watch the logs to see tool composition:
 
@@ -359,7 +360,7 @@ Agent completed after 4 iterations, 3 tool calls
 Generated 5 recommendations for test-user-1
 ```
 
-### 72.4.3: Verify Enhanced Recommendations
+### 54.4.3: Verify Enhanced Recommendations
 
 Get the generated recommendations:
 
@@ -377,7 +378,7 @@ X-API-Key: test-key-user1
 
 ---
 
-## Step 72.5: Testing Scenarios
+## Step 54.5: Testing Scenarios
 
 *Observe different tool composition patterns.*
 

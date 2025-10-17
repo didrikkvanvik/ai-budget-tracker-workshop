@@ -5,5 +5,9 @@ namespace BudgetTracker.Api.Infrastructure;
 public interface IAzureChatService
 {
     Task<string> CompleteChatAsync(string systemPrompt, string userPrompt);
-    Task<string> CompleteChatAsync(IEnumerable<ChatMessage> messages);
+
+    // Modified to return ChatCompletion and accept optional tools
+    Task<ChatCompletion> CompleteChatAsync(
+        IEnumerable<ChatMessage> messages,
+        ChatCompletionOptions? options = null);
 }

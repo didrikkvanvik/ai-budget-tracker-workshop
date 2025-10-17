@@ -2,7 +2,9 @@ using System.Text.Json;
 using BudgetTracker.Api.Infrastructure;
 using BudgetTracker.Api.Features.Transactions;
 using BudgetTracker.Api.Infrastructure.Extensions;
+using BudgetTracker.Api.Features.Intelligence.Tools;
 using Microsoft.EntityFrameworkCore;
+using OpenAI.Chat;
 
 namespace BudgetTracker.Api.Features.Intelligence.Recommendations;
 
@@ -14,28 +16,22 @@ internal class GeneratedRecommendation
     public RecommendationPriority Priority { get; set; }
 }
 
-internal class BasicStats
-{
-    public int TransactionCount { get; set; }
-    public decimal TotalIncome { get; set; }
-    public decimal TotalExpenses { get; set; }
-    public string DateRange { get; set; } = string.Empty;
-    public List<string> TopCategories { get; set; } = new();
-}
-
 public class RecommendationAgent : IRecommendationRepository
 {
     private readonly BudgetTrackerContext _context;
     private readonly IAzureChatService _chatService;
+    private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<RecommendationAgent> _logger;
 
     public RecommendationAgent(
         BudgetTrackerContext context,
         IAzureChatService chatService,
+        IToolRegistry toolRegistry,
         ILogger<RecommendationAgent> logger)
     {
         _context = context;
         _chatService = chatService;
+        _toolRegistry = toolRegistry;
         _logger = logger;
     }
 
@@ -64,9 +60,9 @@ public class RecommendationAgent : IRecommendationRepository
                 .Where(t => t.UserId == userId)
                 .MaxAsync(t => (DateTime?)t.ImportedAt);
 
-            // Skip if no new transactions since last generation (within 1 minute for dev testing)
+            // Skip if no new transactions since last generation (within 2 minute for dev testing)
             if (lastGenerated.HasValue && lastImported.HasValue &&
-                lastGenerated > lastImported.Value.AddMinutes(-1))
+                lastGenerated > lastImported.Value.AddMinutes(-2))
             {
                 _logger.LogInformation("Skipping generation - no new data for user {UserId}", userId);
                 return;
@@ -83,13 +79,16 @@ public class RecommendationAgent : IRecommendationRepository
                 return;
             }
 
-            // 3. Get basic statistics
-            var basicStats = await GetBasicStatsAsync(userId);
+            // 3. Run agentic recommendation generation
+            var recommendations = await GenerateAgenticRecommendationsAsync(userId, maxIterations: 5);
 
-            // 4. Generate recommendations with AI
-            var recommendations = await GenerateSimpleRecommendationsAsync(basicStats);
+            if (!recommendations.Any())
+            {
+                _logger.LogInformation("Agent generated no recommendations for {UserId}", userId);
+                return;
+            }
 
-            // 5. Store recommendations
+            // 4. Store recommendations
             await StoreRecommendationsAsync(userId, recommendations);
 
             _logger.LogInformation("Generated {Count} recommendations for user {UserId}",
@@ -101,79 +100,195 @@ public class RecommendationAgent : IRecommendationRepository
         }
     }
 
-    private async Task<BasicStats> GetBasicStatsAsync(string userId)
+    private async Task<List<GeneratedRecommendation>> GenerateAgenticRecommendationsAsync(
+        string userId,
+        int maxIterations)
     {
-        var transactions = await _context.Transactions
-            .Where(t => t.UserId == userId)
-            .OrderBy(t => t.Date)
-            .Take(1000)
-            .ToListAsync();
-
-        if (!transactions.Any())
+        // Initialize conversation
+        var messages = new List<ChatMessage>
         {
-            return new BasicStats();
+            new SystemChatMessage(CreateSystemPrompt()),
+            new UserChatMessage(CreateInitialUserPrompt())
+        };
+
+        // Prepare tools
+        var tools = _toolRegistry.ToChatTools();
+        var options = new ChatCompletionOptions();
+        foreach (var tool in tools)
+        {
+            options.Tools.Add(tool);
         }
 
-        return new BasicStats
+        _logger.LogInformation("Agent started for user {UserId}", userId);
+
+        // Multi-turn agent loop
+        var iteration = 0;
+        while (iteration < maxIterations)
         {
-            TransactionCount = transactions.Count,
-            TotalIncome = transactions.Where(t => t.Amount > 0).Sum(t => t.Amount),
-            TotalExpenses = Math.Abs(transactions.Where(t => t.Amount < 0).Sum(t => t.Amount)),
-            DateRange = $"{transactions.Min(t => t.Date):yyyy-MM-dd} to {transactions.Max(t => t.Date):yyyy-MM-dd}",
-            TopCategories = transactions
-                .Where(t => t.Amount < 0 && !string.IsNullOrEmpty(t.Category))
-                .GroupBy(t => t.Category)
-                .OrderByDescending(g => Math.Abs(g.Sum(t => t.Amount)))
-                .Take(5)
-                .Select(g => g.Key!)
-                .ToList()
-        };
+            iteration++;
+            _logger.LogInformation("Agent iteration {Iteration}/{Max} for user {UserId}",
+                iteration, maxIterations, userId);
+
+            var completion = await _chatService.CompleteChatAsync(messages, options);
+
+            // Add assistant's response
+            messages.Add(new AssistantChatMessage(completion));
+
+            // Use FinishReason for explicit control flow
+            switch (completion.FinishReason)
+            {
+                case ChatFinishReason.Stop:
+                    // Model naturally completed - extract recommendations
+                    _logger.LogInformation("Agent completed after {Iterations} iterations", iteration);
+                    return ExtractRecommendations(completion);
+
+                case ChatFinishReason.ToolCalls:
+                    // Model wants to call tools
+                    if (completion.ToolCalls.Count > 0)
+                    {
+                        await ExecuteToolCallsAsync(userId, messages, completion.ToolCalls);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("FinishReason is ToolCalls but no tool calls present");
+                        return new List<GeneratedRecommendation>();
+                    }
+                    break;
+
+                case ChatFinishReason.Length:
+                    // Max tokens reached - log and continue
+                    _logger.LogWarning("Max tokens reached at iteration {Iteration} - continuing", iteration);
+                    break;
+
+                case ChatFinishReason.ContentFilter:
+                    _logger.LogWarning("Content filtered at iteration {Iteration}", iteration);
+                    return new List<GeneratedRecommendation>();
+
+                default:
+                    _logger.LogWarning("Unexpected finish reason: {FinishReason}", completion.FinishReason);
+                    return new List<GeneratedRecommendation>();
+            }
+        }
+
+        _logger.LogWarning("Agent reached max iterations ({MaxIterations}) without completion",
+            maxIterations);
+        return new List<GeneratedRecommendation>();
     }
 
-    private async Task<List<GeneratedRecommendation>> GenerateSimpleRecommendationsAsync(BasicStats stats)
+    private async Task ExecuteToolCallsAsync(
+        string userId,
+        List<ChatMessage> messages,
+        IReadOnlyList<ChatToolCall> toolCalls)
     {
-        var systemPrompt = """
-            You are a financial assistant providing general recommendations based on high-level transaction statistics.
+        _logger.LogInformation("Executing {Count} tool call(s)", toolCalls.Count);
 
-            Generate 3-5 actionable financial recommendations in JSON format:
+        foreach (var toolCall in toolCalls)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            try
+            {
+                var tool = _toolRegistry.GetTool(toolCall.FunctionName);
+                if (tool == null)
+                {
+                    _logger.LogWarning("Tool not found: {ToolName}", toolCall.FunctionName);
+                    messages.Add(new ToolChatMessage(
+                        toolCall.Id,
+                        JsonSerializer.Serialize(new { error = "Tool not found" })));
+                    continue;
+                }
+
+                var arguments = JsonDocument.Parse(toolCall.FunctionArguments).RootElement;
+                var result = await tool.ExecuteAsync(userId, arguments);
+
+                stopwatch.Stop();
+                messages.Add(new ToolChatMessage(toolCall.Id, result));
+
+                _logger.LogInformation("Tool {ToolName} executed in {Duration}ms",
+                    tool.Name, stopwatch.ElapsedMilliseconds);
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error executing tool {ToolName}", toolCall.FunctionName);
+
+                messages.Add(new ToolChatMessage(
+                    toolCall.Id,
+                    JsonSerializer.Serialize(new { error = ex.Message })));
+            }
+        }
+    }
+
+    private static string CreateSystemPrompt()
+    {
+        return """
+            You are an autonomous financial analysis agent with access to transaction data tools.
+
+            Your goal is to investigate spending patterns and generate 3-5 highly specific, actionable recommendations.
+
+            AVAILABLE TOOLS:
+            - SearchTransactions: Find transactions using semantic search.
+
+            ANALYSIS STRATEGY:
+            1. Start with exploratory searches to discover patterns
+            2. Look for recurring charges, subscriptions, and spending categories
+            3. Identify behavioral patterns and opportunities
+            4. Focus on the most impactful findings
+
+            RECOMMENDATION CRITERIA:
+            - SPECIFIC: Include exact merchants, dates, and patterns found
+            - ACTIONABLE: Clear next steps the user can take
+            - IMPACTFUL: Focus on changes that make a real difference
+            - EVIDENCE-BASED: Reference the specific transactions you found
+
+            When you've completed your analysis (after 2-4 tool calls), respond with JSON in this format:
             {
               "recommendations": [
                 {
                   "title": "Brief, attention-grabbing title",
-                  "message": "Actionable recommendation based on the statistics provided",
+                  "message": "Specific recommendation with evidence from your searches",
                   "type": "SpendingAlert|SavingsOpportunity|BehavioralInsight|BudgetWarning",
                   "priority": "Low|Medium|High|Critical"
                 }
               ]
             }
 
-            Make recommendations:
-            - GENERAL: Based on overall spending patterns
-            - ACTIONABLE: Clear next steps users can take
-            - RELEVANT: Focus on income/expense balance and top spending categories
+            Think step-by-step. Use the search tool to explore before making recommendations.
             """;
+    }
 
-        var userPrompt = $"""
-            Based on these high-level statistics, provide 3-5 financial recommendations:
+    private static string CreateInitialUserPrompt()
+    {
+        return """
+            Analyze this user's transaction data to generate proactive financial recommendations.
 
-            - Total Income: ${stats.TotalIncome:F2}
-            - Total Expenses: ${stats.TotalExpenses:F2}
-            - Net: ${stats.TotalIncome - stats.TotalExpenses:F2}
-            - Transaction Count: {stats.TransactionCount}
-            - Date Range: {stats.DateRange}
-            - Top Spending Categories: {string.Join(", ", stats.TopCategories)}
+            Use the SearchTransactions tool to investigate:
+            1. Recurring charges and subscriptions
+            2. Frequent spending patterns
+            3. Unusual or concerning transactions
+            4. Optimization opportunities
 
-            Provide helpful, general financial advice based on these statistics.
+            Make 2-4 targeted searches, then provide 3-5 specific recommendations based on what you find.
             """;
+    }
+
+    private List<GeneratedRecommendation> ExtractRecommendations(ChatCompletion completion)
+    {
+        if (completion.Content == null || completion.Content.Count == 0)
+        {
+            _logger.LogWarning("No content in final message");
+            return new List<GeneratedRecommendation>();
+        }
+
+        var content = completion.Content[0].Text;
 
         try
         {
-            var response = await _chatService.CompleteChatAsync(systemPrompt, userPrompt);
-            return ParseRecommendations(response.ExtractJsonFromCodeBlock());
+            return ParseRecommendations(content.ExtractJsonFromCodeBlock());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate AI recommendations");
+            _logger.LogWarning(ex, "Failed to parse recommendations from agent output");
             return new List<GeneratedRecommendation>();
         }
     }

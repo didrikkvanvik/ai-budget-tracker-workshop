@@ -7,7 +7,7 @@ public class EmbeddingBackgroundService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<EmbeddingBackgroundService> _logger;
-    private readonly TimeSpan _processingInterval = TimeSpan.FromMinutes(5); // Check every 5 minutes
+    private readonly TimeSpan _processingInterval = TimeSpan.FromMinutes(2); // Check every 2 minutes
     private const int BatchSize = 50; // Process 50 transactions at a time
 
     public EmbeddingBackgroundService(

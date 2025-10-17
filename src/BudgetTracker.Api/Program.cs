@@ -9,6 +9,7 @@ using BudgetTracker.Api.Features.Transactions.Import.Detection;
 using BudgetTracker.Api.Features.Intelligence.Search;
 using BudgetTracker.Api.Features.Intelligence.Query;
 using BudgetTracker.Api.Features.Intelligence.Recommendations;
+using BudgetTracker.Api.Features.Intelligence.Tools;
 using BudgetTracker.Api.Features.Intelligence;
 using BudgetTracker.Api.Features.Analytics;
 using BudgetTracker.Api.Features.Analytics.Insights;
@@ -89,6 +90,10 @@ builder.Services.AddHostedService<EmbeddingBackgroundService>();
 
 // Add analytics services
 builder.Services.AddScoped<IInsightsService, AzureAiInsightsService>();
+
+// Add agent tools and registry
+builder.Services.AddScoped<IAgentTool, SearchTransactionsTool>();
+builder.Services.AddScoped<IToolRegistry, ToolRegistry>();
 
 // Add recommendation services
 builder.Services.AddScoped<IRecommendationRepository, RecommendationAgent>();
