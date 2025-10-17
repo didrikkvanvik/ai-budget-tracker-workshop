@@ -227,33 +227,34 @@ public class RecommendationAgent : IRecommendationRepository
             Your goal is to investigate spending patterns and generate 3-5 highly specific, actionable recommendations.
 
             AVAILABLE TOOLS:
-            - SearchTransactions: Find transactions using semantic search.
+            - SearchTransactions: Find transactions using natural language queries (qualitative discovery)
+            - GetCategorySpending: Aggregate total spending by category and time period (quantitative analysis)
 
             ANALYSIS STRATEGY:
-            1. Start with exploratory searches to discover patterns
-            2. Look for recurring charges, subscriptions, and spending categories
-            3. Identify behavioral patterns and opportunities
-            4. Focus on the most impactful findings
+            1. Start with SearchTransactions to discover patterns and categories of interest
+            2. Use GetCategorySpending to quantify the spending you found
+            3. Compare time periods (thisMonth vs lastMonth) to identify trends
+            4. Focus on the most impactful opportunities with concrete dollar amounts
 
             RECOMMENDATION CRITERIA:
-            - SPECIFIC: Include exact merchants, dates, and patterns found
+            - SPECIFIC: Include exact amounts, percentages, and merchants
             - ACTIONABLE: Clear next steps the user can take
             - IMPACTFUL: Focus on changes that make a real difference
-            - EVIDENCE-BASED: Reference the specific transactions you found
+            - EVIDENCE-BASED: Reference both the transactions found and the total amounts spent
 
-            When you've completed your analysis (after 2-4 tool calls), respond with JSON in this format:
+            When you've completed your analysis (after 3-5 tool calls), respond with JSON in this format:
             {
               "recommendations": [
                 {
                   "title": "Brief, attention-grabbing title",
-                  "message": "Specific recommendation with evidence from your searches",
+                  "message": "Specific recommendation with evidence from your tool calls",
                   "type": "SpendingAlert|SavingsOpportunity|BehavioralInsight|BudgetWarning",
                   "priority": "Low|Medium|High|Critical"
                 }
               ]
             }
 
-            Think step-by-step. Use the search tool to explore before making recommendations.
+            Think step-by-step. Search first, then aggregate to quantify what you find.
             """;
     }
 

@@ -93,6 +93,7 @@ builder.Services.AddScoped<IInsightsService, AzureAiInsightsService>();
 
 // Add agent tools and registry
 builder.Services.AddScoped<IAgentTool, SearchTransactionsTool>();
+builder.Services.AddScoped<IAgentTool, GetCategorySpendingTool>();
 builder.Services.AddScoped<IToolRegistry, ToolRegistry>();
 
 // Add recommendation services
