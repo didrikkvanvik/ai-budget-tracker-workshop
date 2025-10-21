@@ -164,21 +164,21 @@ public class TransactionEnhancer : ITransactionEnhancer
       }
 
     basePrompt += """
-
+                      
                       Examples:
-    -"AMZN MKTP US*123456789" → "Amazon Marketplace Purchase"
-   - "STARBUCKS COFFEE #1234" → "Starbucks Coffee"
-   - "SHELL OIL #4567" → "Shell Gas Station"
-   - "DD VODAFONE PORTU 222111000 PT00110011" → "Vodafone Portugal - Direct Debit"
-   - "COMPRA 0000 TEMU.COM DUBLIN" → "Temu Online Purchase"
-   - "TRF MB WAY P/ Manuel Silva" → "MB WAY Transfer to Manuel Silva"
-
+                      -"AMZN MKTP US*123456789" → "Amazon Marketplace Purchase"
+                      - "STARBUCKS COFFEE #1234" → "Starbucks Coffee"
+                      - "SHELL OIL #4567" → "Shell Gas Station"
+                      - "DD VODAFONE PORTU 222111000 PT00110011" → "Vodafone Portugal - Direct Debit"
+                      - "COMPRA 0000 TEMU.COM DUBLIN" → "Temu Online Purchase"
+                      - "TRF MB WAY P/ Manuel Silva" → "MB WAY Transfer to Manuel Silva"
+                      
                       Respond with a JSON array where each object has:
                       -"originalDescription": the input description
-                     - "enhancedDescription": the cleaned description
-                     - "suggestedCategory": optional category(e.g., "Groceries", "Entertainment", "Transportation", "Utilities", "Shopping", "Food & Drink", "Gas & Fuel", "Transfer")
+                      - "enhancedDescription": the cleaned description
+                      - "suggestedCategory": optional category(e.g., "Groceries", "Entertainment", "Transportation", "Utilities", "Shopping", "Food & Drink", "Gas & Fuel", "Transfer")
                       -"confidenceScore": number between 0 - 1 indicating confidence in the enhancement
-
+                      
                       Be conservative with confidence scores - only use high scores(> 0.8) when you're very certain about the merchant identification.
                       """;
 
