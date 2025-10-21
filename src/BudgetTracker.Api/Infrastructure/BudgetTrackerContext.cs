@@ -1,5 +1,6 @@
 using BudgetTracker.Api.Auth;
 using BudgetTracker.Api.Features.Transactions;
+using BudgetTracker.Api.Features.Transactions.Category;
 using BudgetTracker.Api.Features.Intelligence.Recommendations;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,7 @@ public class BudgetTrackerContext : IdentityDbContext<ApplicationUser>
     }
 
     public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<TransactionCategory> TransactionCategories => Set<TransactionCategory>();
     public DbSet<Recommendation> Recommendations => Set<Recommendation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -58,6 +60,29 @@ public class BudgetTrackerContext : IdentityDbContext<ApplicationUser>
                 .WithMany()
                 .HasForeignKey(t => t.UserId)
                 .HasPrincipalKey(u => u.Id);
+        });
+
+        // Configure TransactionCategory entity
+        modelBuilder.Entity<TransactionCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            // Index for efficient category lookups by transaction
+            entity.HasIndex(e => new { e.TransactionId, e.UserId })
+                .HasDatabaseName("IX_TransactionCategories_TransactionId_UserId");
+
+            // Index for finding all transactions with a specific category
+            entity.HasIndex(e => new { e.CategoryName, e.UserId })
+                .HasDatabaseName("IX_TransactionCategories_CategoryName_UserId");
+
+            // Configure relationship
+            entity.HasOne(tc => tc.Transaction)
+                .WithMany(t => t.Categories)
+                .HasForeignKey(tc => tc.TransactionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

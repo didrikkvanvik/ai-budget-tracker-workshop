@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { getCategoryColor } from '../../../shared/utils/formatters';
 import { transactionsApi } from '../api';
 import type { TransactionFilters as FilterData } from '../types';
-import { getCategoryColor } from '../../../shared/utils/formatters';
 
 const FilterIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -132,7 +132,7 @@ export default function TransactionFilters({
         {hasSelection && onDelete && (
           <button
             onClick={onDelete}
-            className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            className="cursor-pointer flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
           >
             <TrashIcon />
             Delete {selectedCount} {selectedCount === 1 ? 'transaction' : 'transactions'}
@@ -199,7 +199,7 @@ export default function TransactionFilters({
                   {selectedCategory}
                   <button
                     onClick={() => handleCategoryChange('')}
-                    className="hover:bg-black/10 rounded p-0.5 transition-colors"
+                    className="cursor-pointer hover:bg-black/10 rounded p-0.5 transition-colors"
                     aria-label="Clear category filter"
                   >
                     <XIcon />
@@ -211,7 +211,7 @@ export default function TransactionFilters({
                   {selectedAccount}
                   <button
                     onClick={() => handleAccountChange('')}
-                    className="hover:bg-black/10 rounded p-0.5 transition-colors"
+                    className="cursor-pointer hover:bg-black/10 rounded p-0.5 transition-colors"
                     aria-label="Clear account filter"
                   >
                     <XIcon />
@@ -220,7 +220,7 @@ export default function TransactionFilters({
               )}
               <button
                 onClick={clearFilters}
-                className="text-sm text-gray-600 hover:text-gray-900 font-medium underline transition-colors"
+                className="cursor-pointer text-sm text-gray-600 hover:text-gray-900 font-medium underline transition-colors"
               >
                 Clear all
               </button>

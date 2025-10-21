@@ -19,10 +19,10 @@ public static class TransactionListApi
 
       var query = db.Transactions.Where(t => t.UserId == claimsPrincipal.GetUserId());
 
-      // Apply category filter
+      // Apply category filter - match if category is in primary Category OR in Categories collection
       if (!string.IsNullOrWhiteSpace(category))
       {
-        query = query.Where(t => t.Category == category);
+        query = query.Where(t => t.Category == category || t.Categories.Any(c => c.CategoryName == category));
       }
 
       // Apply account filter
@@ -34,15 +34,16 @@ public static class TransactionListApi
       var totalCount = await query.CountAsync();
 
       var items = await query
+          .Include(t => t.Categories)
           .OrderByDescending(t => t.Date)
           .ThenByDescending(t => t.ImportedAt)
           .Skip((page - 1) * pageSize)
           .Take(pageSize)
           .ToListAsync();
 
-      var result = new PagedResult<Transaction>
+      var result = new PagedResult<TransactionDto>
       {
-        Items = items,
+        Items = items.Select(t => t.MapToDto()).ToList(),
         TotalCount = totalCount,
         Page = page,
         PageSize = pageSize
@@ -56,12 +57,24 @@ public static class TransactionListApi
             {
               var userId = claimsPrincipal.GetUserId();
 
-              var categories = await db.Transactions
+              // Get primary categories
+              var primaryCategories = await db.Transactions
                       .Where(t => t.UserId == userId && !string.IsNullOrEmpty(t.Category))
                       .Select(t => t.Category!)
+                      .ToListAsync();
+
+              // Get additional categories from TransactionCategories
+              var additionalCategories = await db.TransactionCategories
+                      .Where(tc => tc.UserId == userId)
+                      .Select(tc => tc.CategoryName)
+                      .ToListAsync();
+
+              // Combine and deduplicate categories
+              var categories = primaryCategories
+                      .Concat(additionalCategories)
                       .Distinct()
                       .OrderBy(c => c)
-                      .ToListAsync();
+                      .ToList();
 
               var accounts = await db.Transactions
                       .Where(t => t.UserId == userId)

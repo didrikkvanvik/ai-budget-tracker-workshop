@@ -49,6 +49,11 @@ public class Transaction
     /// Vector embedding for semantic search (1536 dimensions for text-embedding-3-small)
     /// </summary>
     public Vector? Embedding { get; set; } // Add vector embedding property
+
+    /// <summary>
+    /// Additional categories for this transaction (many-to-many)
+    /// </summary>
+    public ICollection<Category.TransactionCategory> Categories { get; set; } = new List<Category.TransactionCategory>();
 }
 
 public class TransactionDto
@@ -58,7 +63,8 @@ public class TransactionDto
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public decimal? Balance { get; set; }
-    public string? Category { get; set; }
+    public string? Category { get; set; } // Primary category (backward compatibility)
+    public List<string> Categories { get; set; } = new(); // All categories including primary
     public string? Labels { get; set; }
     public DateTime ImportedAt { get; set; }
     public string Account { get; set; } = string.Empty;
@@ -68,6 +74,20 @@ internal static class TransactionExtensions
 {
     public static TransactionDto MapToDto(this Transaction transaction)
     {
+        // Build complete categories list: primary category + additional categories
+        var categories = new List<string>();
+        if (!string.IsNullOrWhiteSpace(transaction.Category))
+        {
+            categories.Add(transaction.Category);
+        }
+
+        if (transaction.Categories != null && transaction.Categories.Any())
+        {
+            categories.AddRange(transaction.Categories
+                .Select(c => c.CategoryName)
+                .Where(name => !categories.Contains(name))); // Avoid duplicates
+        }
+
         return new TransactionDto
         {
             Id = transaction.Id,
@@ -75,7 +95,8 @@ internal static class TransactionExtensions
             Description = transaction.Description,
             Amount = transaction.Amount,
             Balance = transaction.Balance,
-            Category = transaction.Category,
+            Category = transaction.Category, // Primary category
+            Categories = categories, // All categories
             Labels = transaction.Labels,
             ImportedAt = transaction.ImportedAt,
             Account = transaction.Account

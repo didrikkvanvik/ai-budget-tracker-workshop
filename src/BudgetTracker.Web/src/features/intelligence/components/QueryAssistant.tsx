@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useToast } from '../../../shared/contexts/ToastContext';
-import { intelligenceApi, type QueryResponse } from '../api';
 import Card from '../../../shared/components/Card';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
+import { useToast } from '../../../shared/contexts/ToastContext';
 import { formatCurrency, formatDate, getCategoryColor } from '../../../shared/utils/formatters';
+import { intelligenceApi, type QueryResponse } from '../api';
 
 const MessageIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle">
@@ -89,7 +89,7 @@ export default function QueryAssistant({ className = "" }: QueryAssistantProps) 
           <button
             type="submit"
             disabled={!query.trim() || isLoading}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[80px] justify-center"
+            className="cursor-pointer px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[80px] justify-center"
           >
             {isLoading ? <LoadingSpinner size="sm" /> : (
               <>
@@ -109,7 +109,7 @@ export default function QueryAssistant({ className = "" }: QueryAssistantProps) 
               <button
                 key={index}
                 onClick={() => setQuery(suggestion)}
-                className="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
+                className="cursor-pointer text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
               >
                 {suggestion}
               </button>
@@ -130,11 +130,19 @@ export default function QueryAssistant({ className = "" }: QueryAssistantProps) 
                   <p className="text-xs text-gray-500 mt-1">
                     {formatDate(response.transaction.date)} • {response.transaction.account}
                   </p>
-                  {response.transaction.category && (
-                    <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full ${getCategoryColor(response.transaction.category)}`}>
-                      {response.transaction.category}
-                    </span>
-                  )}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {response.transaction.categories && response.transaction.categories.length > 0 ? (
+                      response.transaction.categories.map((cat, idx) => (
+                        <span key={idx} className={`inline-block px-2 py-1 text-xs rounded-full ${getCategoryColor(cat)}`}>
+                          {cat}
+                        </span>
+                      ))
+                    ) : response.transaction.category && (
+                      <span className={`inline-block px-2 py-1 text-xs rounded-full ${getCategoryColor(response.transaction.category)}`}>
+                        {response.transaction.category}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className={`font-medium text-sm ${response.transaction.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -155,11 +163,19 @@ export default function QueryAssistant({ className = "" }: QueryAssistantProps) 
                       <p className="text-xs text-gray-500 mt-1">
                         {formatDate(transaction.date)} • {transaction.account}
                       </p>
-                      {transaction.category && (
-                        <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full ${getCategoryColor(transaction.category)}`}>
-                          {transaction.category}
-                        </span>
-                      )}
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {transaction.categories && transaction.categories.length > 0 ? (
+                          transaction.categories.map((cat, idx) => (
+                            <span key={idx} className={`inline-block px-2 py-1 text-xs rounded-full ${getCategoryColor(cat)}`}>
+                              {cat}
+                            </span>
+                          ))
+                        ) : transaction.category && (
+                          <span className={`inline-block px-2 py-1 text-xs rounded-full ${getCategoryColor(transaction.category)}`}>
+                            {transaction.category}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className={`font-medium text-sm ${transaction.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>

@@ -4,7 +4,8 @@ export interface Transaction {
   description: string;
   amount: number;
   balance?: number;
-  category?: string;
+  category?: string; // Primary category (backward compatibility)
+  categories?: string[]; // All categories including primary
   labels?: string;
   importedAt: string;
   sourceFile?: string;

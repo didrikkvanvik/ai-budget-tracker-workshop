@@ -66,5 +66,34 @@ export const transactionsApi = {
       handleError('Failed to enhance transactions', error);
       throw error;
     }
+  },
+
+  async addCategory(transactionId: string, categoryName: string): Promise<{ id: string; categoryName: string }> {
+    try {
+      const response = await apiClient.post(`/transactions/${transactionId}/categories`, { categoryName });
+      return response.data;
+    } catch (error) {
+      handleError('Failed to add category', error);
+      throw error;
+    }
+  },
+
+  async removeCategory(transactionId: string, categoryName: string): Promise<void> {
+    try {
+      await apiClient.delete(`/transactions/${transactionId}/categories/${encodeURIComponent(categoryName)}`);
+    } catch (error) {
+      handleError('Failed to remove category', error);
+      throw error;
+    }
+  },
+
+  async addBulkCategories(transactionIds: string[], categoryNames: string[]): Promise<{ addedCount: number; message: string }> {
+    try {
+      const response = await apiClient.post('/transactions/bulk-categories', { transactionIds, categoryNames });
+      return response.data;
+    } catch (error) {
+      handleError('Failed to add categories in bulk', error);
+      throw error;
+    }
   }
 };

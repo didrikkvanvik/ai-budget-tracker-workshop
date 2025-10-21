@@ -11,6 +11,7 @@ export interface TransactionDto {
   amount: number;
   balance?: number;
   category?: string;
+  categories?: string[];
   labels?: string;
   importedAt: string;
   account: string;
