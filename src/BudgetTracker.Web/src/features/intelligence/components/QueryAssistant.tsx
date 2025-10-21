@@ -3,7 +3,7 @@ import { useToast } from '../../../shared/contexts/ToastContext';
 import { intelligenceApi, type QueryResponse } from '../api';
 import Card from '../../../shared/components/Card';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
-import { formatCurrency, formatDate } from '../../../shared/utils/formatters';
+import { formatCurrency, formatDate, getCategoryColor } from '../../../shared/utils/formatters';
 
 const MessageIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle">
@@ -131,7 +131,7 @@ export default function QueryAssistant({ className = "" }: QueryAssistantProps) 
                     {formatDate(response.transaction.date)} • {response.transaction.account}
                   </p>
                   {response.transaction.category && (
-                    <span className="inline-block mt-1 px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">
+                    <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full ${getCategoryColor(response.transaction.category)}`}>
                       {response.transaction.category}
                     </span>
                   )}
@@ -156,7 +156,7 @@ export default function QueryAssistant({ className = "" }: QueryAssistantProps) 
                         {formatDate(transaction.date)} • {transaction.account}
                       </p>
                       {transaction.category && (
-                        <span className="inline-block mt-1 px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">
+                        <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full ${getCategoryColor(transaction.category)}`}>
                           {transaction.category}
                         </span>
                       )}

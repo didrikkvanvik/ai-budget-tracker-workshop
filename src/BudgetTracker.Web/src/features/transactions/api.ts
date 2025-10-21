@@ -6,7 +6,8 @@ import type {
   ImportResult,
   EnhanceImportRequest,
   EnhanceImportResult,
-  TransactionEnhancementResult
+  TransactionEnhancementResult,
+  TransactionFilters
 } from './types';
 
 export type { EnhanceImportResult, TransactionEnhancementResult };
@@ -18,10 +19,15 @@ function handleError(message: string, error: any): void {
 
 export const transactionsApi = {
   async getTransactions(params: GetTransactionsParams = {}): Promise<TransactionListDto> {
-    const { page = 1, pageSize = 20 } = params;
+    const { page = 1, pageSize = 20, category, account } = params;
     const response = await apiClient.get<TransactionListDto>('/transactions', {
-      params: { page, pageSize }
+      params: { page, pageSize, category, account }
     });
+    return response.data;
+  },
+
+  async getFilters(): Promise<TransactionFilters> {
+    const response = await apiClient.get<TransactionFilters>('/transactions/filters');
     return response.data;
   },
 

@@ -10,12 +10,26 @@ public static class TransactionListApi
     public static IEndpointRouteBuilder MapTransactionListEndpoint(this IEndpointRouteBuilder routes)
     {
         routes.MapGet("/",
-                async (BudgetTrackerContext db, ClaimsPrincipal claimsPrincipal, int page = 1, int pageSize = 20) =>
+                async (BudgetTrackerContext db, ClaimsPrincipal claimsPrincipal,
+                    int page = 1, int pageSize = 20, string? category = null, string? account = null) =>
                 {
                     if (page < 1) page = 1;
                     if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
                     var query = db.Transactions.Where(t => t.UserId == claimsPrincipal.GetUserId());
+
+                    // Apply category filter
+                    if (!string.IsNullOrWhiteSpace(category))
+                    {
+                        query = query.Where(t => t.Category == category);
+                    }
+
+                    // Apply account filter
+                    if (!string.IsNullOrWhiteSpace(account))
+                    {
+                        query = query.Where(t => t.Account == account);
+                    }
+
                     var totalCount = await query.CountAsync();
 
                     var items = await query
@@ -34,6 +48,28 @@ public static class TransactionListApi
                     };
 
                     return Results.Ok(result);
+                });
+
+        routes.MapGet("/filters",
+                async (BudgetTrackerContext db, ClaimsPrincipal claimsPrincipal) =>
+                {
+                    var userId = claimsPrincipal.GetUserId();
+
+                    var categories = await db.Transactions
+                        .Where(t => t.UserId == userId && !string.IsNullOrEmpty(t.Category))
+                        .Select(t => t.Category!)
+                        .Distinct()
+                        .OrderBy(c => c)
+                        .ToListAsync();
+
+                    var accounts = await db.Transactions
+                        .Where(t => t.UserId == userId)
+                        .Select(t => t.Account)
+                        .Distinct()
+                        .OrderBy(a => a)
+                        .ToListAsync();
+
+                    return Results.Ok(new { categories, accounts });
                 });
 
         return routes;

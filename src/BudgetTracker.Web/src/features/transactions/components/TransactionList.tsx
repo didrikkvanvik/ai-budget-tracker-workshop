@@ -3,7 +3,8 @@ import type { TransactionListDto } from '../types';
 import EmptyState from '../../../shared/components/EmptyState';
 import Pagination from '../../../shared/components/Pagination';
 import { SkeletonCardRow } from '../../../shared/components/Skeleton';
-import { formatDate } from '../../../shared/utils/formatters';
+import { formatDate, getCategoryColor } from '../../../shared/utils/formatters';
+import TransactionFilters from './TransactionFilters';
 
 export default function TransactionList() {
   const data = useLoaderData() as TransactionListDto;
@@ -48,6 +49,7 @@ export default function TransactionList() {
 
   return (
     <div className="space-y-4">
+      <TransactionFilters />
       <div className="space-y-2">
         {data.items.map((transaction) => (
           <div key={transaction.id} className="bg-white rounded-lg border border-neutral-100 p-4 hover:shadow-sm transition-shadow duration-200">
@@ -58,10 +60,7 @@ export default function TransactionList() {
                     {transaction.description}
                   </p>
                   {transaction.category && (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${transaction.category === 'Uncategorized'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-neutral-100 text-neutral-600'
-                      }`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(transaction.category)}`}>
                       {transaction.category}
                     </span>
                   )}

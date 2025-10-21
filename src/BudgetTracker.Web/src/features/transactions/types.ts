@@ -24,6 +24,13 @@ export interface TransactionListDto {
 export interface GetTransactionsParams {
   page?: number;
   pageSize?: number;
+  category?: string;
+  account?: string;
+}
+
+export interface TransactionFilters {
+  categories: string[];
+  accounts: string[];
 }
 
 export interface ImportTransactionsParams {
