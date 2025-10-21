@@ -14,7 +14,10 @@ public class AzureChatService : IAzureChatService
         IOptions<AzureAiConfiguration> configuration)
     {
         var config = configuration.Value;
-        _deploymentName = config.DeploymentName;
+        // Use ChatDeploymentName if available, otherwise fall back to DeploymentName
+        _deploymentName = !string.IsNullOrEmpty(config.ChatDeploymentName)
+            ? config.ChatDeploymentName
+            : config.DeploymentName;
         _openAiClient = clientFactory.CreateClient();
     }
 

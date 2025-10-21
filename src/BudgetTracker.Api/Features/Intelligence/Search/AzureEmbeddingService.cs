@@ -1,5 +1,6 @@
 using Azure.AI.OpenAI;
 using BudgetTracker.Api.Infrastructure;
+using Microsoft.Extensions.Options;
 using OpenAI.Embeddings;
 using Pgvector;
 
@@ -9,17 +10,23 @@ public class AzureEmbeddingService : IAzureEmbeddingService
 {
     private readonly AzureOpenAIClient _openAIClient;
     private readonly ILogger<AzureEmbeddingService> _logger;
+    private readonly string _embeddingModel;
 
-    // Use text-embedding-3-small for cost efficiency (1536 dimensions)
-    private const string EmbeddingModel = "text-embedding-3-small";
     private const int MaxBatchSize = 100; // Azure OpenAI batch limit
 
     public AzureEmbeddingService(
         IAzureOpenAIClientFactory clientFactory,
+        IOptions<AzureAiConfiguration> configuration,
         ILogger<AzureEmbeddingService> logger)
     {
         _logger = logger;
         _openAIClient = clientFactory.CreateClient();
+
+        var config = configuration.Value;
+        // Use EmbeddingDeploymentName if available, otherwise fall back to hardcoded value
+        _embeddingModel = !string.IsNullOrEmpty(config.EmbeddingDeploymentName)
+            ? config.EmbeddingDeploymentName
+            : "text-embedding-3-small";
     }
 
     public async Task<Vector> GenerateEmbeddingAsync(string text)
@@ -31,7 +38,7 @@ public class AzureEmbeddingService : IAzureEmbeddingService
 
         try
         {
-            var client = _openAIClient.GetEmbeddingClient(EmbeddingModel);
+            var client = _openAIClient.GetEmbeddingClient(_embeddingModel);
             var response = await client.GenerateEmbeddingAsync(text);
 
             var embeddingValues = response.Value.ToFloats().ToArray();
