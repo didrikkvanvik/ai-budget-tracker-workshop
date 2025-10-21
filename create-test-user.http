@@ -1,0 +1,21 @@
+### Register a test user
+POST http://localhost:5295/api/users/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "Test123!"
+}
+
+### Login
+POST http://localhost:5295/api/users/login?useCookies=true
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "Test123!"
+}
+
+### Get current user info
+GET http://localhost:5295/api/users/me
+
