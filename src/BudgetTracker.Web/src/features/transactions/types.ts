@@ -48,6 +48,7 @@ export interface TransactionEnhancementResult {
   transactionIndex: number;
   originalDescription: string;
   enhancedDescription: string;
+  suggestedCategory?: string;
   confidenceScore: number;
 }
 

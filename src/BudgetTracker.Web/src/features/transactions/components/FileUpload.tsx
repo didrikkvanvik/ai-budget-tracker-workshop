@@ -163,10 +163,6 @@ function FileUpload({ className = '' }: FileUploadProps) {
     }
   }, []);
 
-  const handleRetryImport = useCallback(() => {
-    handleImport();
-  }, [handleImport]);
-
   const handleEnhance = useCallback(async (applyEnhancements: boolean) => {
     if (!importResult) return;
 
@@ -451,6 +447,11 @@ function FileUpload({ className = '' }: FileUploadProps) {
                           {willEnhance && (
                             <div className="text-sm font-medium text-gray-900">
                               <span className="font-medium text-green-700">Enhanced:</span> {enhancement.enhancedDescription}
+                              {enhancement.suggestedCategory && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                  {enhancement.suggestedCategory}
+                                </span>
+                              )}
                             </div>
                           )}
                           {!willEnhance && (

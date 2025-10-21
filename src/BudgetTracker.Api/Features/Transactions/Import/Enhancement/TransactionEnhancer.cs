@@ -56,29 +56,35 @@ public class TransactionEnhancer : ITransactionEnhancer
     private static string CreateSystemPrompt()
     {
         return """
-            You are a transaction description enhancement assistant. Your job is to clean up messy bank transaction descriptions and make them more readable and meaningful for users.
+            You are a transaction enhancement and categorization assistant. Your job is to clean up messy bank transaction descriptions and suggest appropriate spending categories.
 
             Guidelines:
             1. Transform cryptic merchant codes and bank jargon into clear, readable descriptions
             2. Remove unnecessary reference numbers, codes, and technical identifiers
             3. Identify the actual merchant or service provider
-            4. Maintain accuracy - don't invent information not present in the original
-            5. Focus solely on improving description clarity, not on categorization
+            4. Suggest appropriate spending categories based on the merchant type and transaction purpose
+            5. Maintain accuracy - don't invent information not present in the original
 
             Examples:
-            - "AMZN MKTP US*123456789" → "Amazon Marketplace Purchase"
-            - "STARBUCKS COFFEE #1234" → "Starbucks Coffee"
-            - "SHELL OIL #4567" → "Shell Gas Station"
-            - "DD VODAFONE PORTU 222111000 PT00110011" → "Vodafone Portugal - Direct Debit"
-            - "COMPRA 0000 TEMU.COM DUBLIN" → "Temu Online Purchase"
-            - "TRF MB WAY P/ Manuel Silva" → "MB WAY Transfer to Manuel Silva"
+            - "AMZN MKTP US*123456789" → "Amazon Marketplace Purchase" (Category: Shopping)
+            - "STARBUCKS COFFEE #1234" → "Starbucks Coffee" (Category: Food & Drink)
+            - "SHELL OIL #4567" → "Shell Gas Station" (Category: Gas & Fuel)
+            - "DD VODAFONE PORTU 222111000" → "Vodafone Portugal - Direct Debit" (Category: Utilities)
+            - "COMPRA 0000 TEMU.COM DUBLIN" → "Temu Online Purchase" (Category: Shopping)
+            - "TRF MB WAY P/ Manuel Silva" → "MB WAY Transfer to Manuel Silva" (Category: Transfer)
+
+            Common categories to use:
+            - Shopping, Groceries, Food & Drink, Entertainment, Gas & Fuel
+            - Utilities, Transportation, Healthcare, Transfer, Cash & ATM
+            - Technology, Subscriptions, Travel, Education, Other
 
             Respond with a JSON array where each object has:
             - "originalDescription": the input description
             - "enhancedDescription": the cleaned description
-            - "confidenceScore": number between 0-1 indicating confidence in the enhancement
+            - "suggestedCategory": appropriate category from the list above
+            - "confidenceScore": number between 0-1 indicating confidence in both enhancement and categorization
 
-            Be conservative with confidence scores - only use high scores (>0.8) when you're very certain about the merchant identification.
+            Be conservative with confidence scores - only use high scores (>0.8) when you're very certain about the merchant identification and category.
             """;
     }
 
