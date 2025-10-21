@@ -1,45 +1,65 @@
-import { Link } from 'react-router-dom';
+import { useLoaderData, useNavigation, type LoaderFunctionArgs } from 'react-router';
+import { InsightsCard, analyticsApi } from '../features/analytics';
 import Header from '../shared/components/layout/Header';
+import { QueryAssistant, RecommendationsCard, intelligenceApi } from '../features/intelligence';
+import type { BudgetInsights } from '../features/analytics';
+import type { ProactiveRecommendation } from '../features/intelligence';
 
-export async function loader() {
-  return {};
+
+export async function loader({ }: LoaderFunctionArgs) {
+  try {
+    const [insights, recommendations] = await Promise.all([
+      analyticsApi.getInsights().catch(() => null),
+      intelligenceApi.getRecommendations().catch(() => [])
+    ]);
+    return { insights, recommendations };
+  } catch (error) {
+    console.error('Failed to load dashboard data:', error);
+    throw new Error('Failed to load dashboard data');
+  }
 }
 
 export default function Dashboard() {
+  const data = useLoaderData() as {
+    insights: BudgetInsights | null;
+    recommendations: ProactiveRecommendation[];
+  };
+  const { insights, recommendations } = data;
+  const navigation = useNavigation();
+  const isLoading = navigation.state === 'loading';
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-6 sm:px-0">
+        <div className="mb-10">
+          <div className="animate-pulse bg-neutral-200 rounded-xl h-8 w-48 mb-3" />
+          <div className="animate-pulse bg-neutral-200 rounded-lg h-4 w-32" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="animate-pulse bg-neutral-200 rounded-xl h-64" />
+          <div className="animate-pulse bg-neutral-200 rounded-xl h-64" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-6 sm:px-0">
       <Header
         title="Dashboard"
-        subtitle="Welcome to your budget tracker"
+        subtitle="Analytics insights demo"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Getting Started</h3>
-          <p className="text-gray-600">
-            This is your dashboard template. Add your budget tracking features here.
-          </p>
+      {recommendations.length > 0 && (
+        <div className="mb-6">
+          <RecommendationsCard recommendations={recommendations} />
         </div>
+      )}
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Transactions</h3>
-          <p className="text-gray-600 mb-4">
-            View and manage your imported transaction data.
-          </p>
-          <Link
-            to="/transactions"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-          >
-            View Transactions
-          </Link>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Code</h3>
-          <p className="text-gray-600">
-            Auth, styling, and project structure are already set up for you.
-          </p>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {insights && <InsightsCard insights={insights} />}
+        <QueryAssistant />
       </div>
     </div>
   );

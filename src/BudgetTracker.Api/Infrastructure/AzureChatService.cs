@@ -9,11 +9,16 @@ public class AzureChatService : IAzureChatService
     private readonly AzureOpenAIClient _openAiClient;
     private readonly string _deploymentName;
 
-    public AzureChatService(IOptions<AzureAiConfiguration> configuration)
+    public AzureChatService(
+        IAzureOpenAIClientFactory clientFactory,
+        IOptions<AzureAiConfiguration> configuration)
     {
         var config = configuration.Value;
-        _deploymentName = config.DeploymentName;
-        _openAiClient = CreateClient(config);
+        // Use ChatDeploymentName if available, otherwise fall back to DeploymentName
+        _deploymentName = !string.IsNullOrEmpty(config.ChatDeploymentName)
+            ? config.ChatDeploymentName
+            : config.DeploymentName;
+        _openAiClient = clientFactory.CreateClient();
     }
 
     public async Task<string> CompleteChatAsync(string systemPrompt, string userPrompt)
@@ -31,18 +36,5 @@ public class AzureChatService : IAzureChatService
         var client = _openAiClient.GetChatClient(_deploymentName);
         var response = await client.CompleteChatAsync(messages);
         return response.Value.Content[0].Text;
-    }
-
-    private AzureOpenAIClient CreateClient(AzureAiConfiguration configuration)
-    {
-        if (string.IsNullOrEmpty(configuration.Endpoint) || string.IsNullOrEmpty(configuration.ApiKey))
-        {
-            throw new InvalidOperationException(
-                "Azure AI configuration is missing. Please configure Endpoint and ApiKey.");
-        }
-
-        return new AzureOpenAIClient(
-            new Uri(configuration.Endpoint),
-            new Azure.AzureKeyCredential(configuration.ApiKey));
     }
 }

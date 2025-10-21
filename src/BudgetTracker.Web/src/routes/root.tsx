@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useToast } from '../shared/contexts/ToastContext';
 import { authApi } from '../features/auth';
+import { useToast } from '../shared/contexts/ToastContext';
 
 const WalletIcon = () => (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +70,7 @@ export default function Root() {
               </NavLink>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
+                className="cursor-pointer px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
               >
                 Logout
               </button>

@@ -38,6 +38,11 @@ api.interceptors.response.use(
       navigationService.navigateTo('/login');
     }
 
+    // Handle specific AI service errors
+    if (error.config?.url?.includes('/query/ask')) {
+      console.error('Query Assistant Error:', error.response?.data || error.message);
+    }
+
     return Promise.reject(error);
   }
 );

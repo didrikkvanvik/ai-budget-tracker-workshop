@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useToast } from '../../../shared/contexts/ToastContext';
 import { apiClient } from '../../../api';
+import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
+import { useToast } from '../../../shared/contexts/ToastContext';
 import { transactionsApi, type EnhanceImportResult } from '../api';
 import type { ImportResult } from '../types';
-import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 
 type Step = 'upload' | 'imported' | 'enhanced' | 'complete';
 
@@ -20,14 +20,13 @@ function FileUpload({ className = '' }: FileUploadProps) {
   const [account, setAccount] = useState('');
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [currentStep, setCurrentStep] = useState<Step>('upload');
-  const [currentPhase, setCurrentPhase] = useState<'uploading' | 'detecting' | 'parsing' | 'converting' | 'extracting' | 'enhancing' | 'complete'>('uploading');
+  const [currentPhase, setCurrentPhase] = useState<'uploading' | 'detecting' | 'parsing' | 'extracting' | 'enhancing' | 'complete'>('uploading');
   const [minConfidenceScore, setMinConfidenceScore] = useState(0.7);
   const [enhanceResult, setEnhanceResult] = useState<EnhanceImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   useEffect(() => {
     // Fetch XSRF token when component mounts to enable API calls
@@ -42,14 +41,18 @@ function FileUpload({ className = '' }: FileUploadProps) {
   }, []);
 
   const validateFile = (file: File): string | null => {
+    const validExtensions = ['.csv', '.png', '.jpg', '.jpeg'];
     const fileName = file.name.toLowerCase();
 
-    if (!fileName.endsWith('.csv')) {
-      return 'Please select a CSV file';
+    if (!validExtensions.some(ext => fileName.endsWith(ext))) {
+      return 'Please select a CSV file or bank statement image (PNG, JPG, JPEG)';
     }
-    if (file.size > MAX_FILE_SIZE) {
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
       return 'File size must be less than 10MB';
     }
+
     return null;
   };
 
@@ -109,18 +112,21 @@ function FileUpload({ className = '' }: FileUploadProps) {
       formData.append('file', selectedFile);
       formData.append('account', account.trim());
 
+      // Determine processing phase based on file type
+      const isImage = selectedFile.name.toLowerCase().match(/\.(png|jpg|jpeg)$/);
+
       const result = await transactionsApi.importTransactions({
         formData,
         onUploadProgress: (progressEvent) => {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadProgress(progress);
 
-          // Update phase based on progress for CSV processing
+          // Update phase based on progress and file type
           if (progress < 20) {
             setCurrentPhase('uploading');
           } else if (progress < 60) {
-            setCurrentPhase('detecting');
-          } else if (progress < 85) {
+            setCurrentPhase(isImage ? 'extracting' : 'detecting');
+          } else if (progress < 85 && !isImage) {
             setCurrentPhase('parsing');
           } else if (progress < 100) {
             setCurrentPhase('enhancing');
@@ -133,12 +139,14 @@ function FileUpload({ className = '' }: FileUploadProps) {
       setImportResult(result);
       setCurrentStep('imported');
 
-      showSuccess(`Successfully imported ${result.importedCount} transactions with AI description enhancements ready for review`);
+      showSuccess(
+        `Successfully imported ${result.importedCount} transactions from ${getFileTypeLabel(selectedFile.name).toLowerCase()} with AI description enhancements ready for review`
+      );
     } catch (error) {
       console.error('Import error:', error);
 
       // Extract error message from the response
-      let errorMessage = 'Failed to import the CSV file';
+      let errorMessage = 'Failed to import the file';
       if (error && typeof error === 'object' && 'message' in error) {
         errorMessage = (error as Error).message;
       }
@@ -207,6 +215,43 @@ function FileUpload({ className = '' }: FileUploadProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getFileTypeIcon = (fileName: string) => {
+    const name = fileName.toLowerCase();
+    if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+      return '🖼️'; // Image icon
+    }
+    return '📊'; // CSV/spreadsheet icon
+  };
+
+  const getFileTypeLabel = (fileName: string) => {
+    const name = fileName.toLowerCase();
+    if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+      return 'Bank Statement Image';
+    }
+    return 'CSV Bank Statement';
+  };
+
+  const getPhaseDescription = (phase: string, fileName: string): string => {
+    const isImage = fileName.toLowerCase().match(/\.(png|jpg|jpeg)$/);
+
+    switch (phase) {
+      case 'uploading':
+        return `Uploading ${isImage ? 'bank statement image' : 'CSV file'}...`;
+      case 'detecting':
+        return isImage ? 'Preparing image for analysis...' : 'Detecting CSV structure...';
+      case 'parsing':
+        return 'Parsing CSV data...';
+      case 'extracting':
+        return 'Extracting transactions from image using AI...';
+      case 'enhancing':
+        return 'Enhancing transaction descriptions with AI...';
+      case 'complete':
+        return 'Import completed successfully!';
+      default:
+        return 'Processing...';
+    }
+  };
+
   return (
     <div className={`space-y-8 ${className}`}>
       {/* Step Indicator */}
@@ -250,7 +295,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.png,.jpg,.jpeg"
               onChange={handleFileInputChange}
               className="hidden"
             />
@@ -293,7 +338,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
               {!selectedFile && (
                 <button
                   onClick={handleBrowseClick}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
+                  className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
                 >
                   Browse Files
                 </button>
@@ -306,11 +351,11 @@ function FileUpload({ className = '' }: FileUploadProps) {
               <div className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0 p-2 bg-green-100 rounded-xl">
-                    <span className="text-green-600 text-lg">📊</span>
+                    <span className="text-green-600 text-lg">{getFileTypeIcon(selectedFile.name)}</span>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{selectedFile.name}</p>
-                    <p className="text-xs text-gray-600">CSV Bank Statement • {formatFileSize(selectedFile.size)}</p>
+                    <p className="text-xs text-gray-600">{getFileTypeLabel(selectedFile.name)} • {formatFileSize(selectedFile.size)}</p>
                   </div>
                 </div>
 
@@ -350,24 +395,20 @@ function FileUpload({ className = '' }: FileUploadProps) {
                   <button
                     onClick={handleClearFile}
                     disabled={isUploading}
-                    className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-xs font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:opacity-50"
+                    className="cursor-pointer inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-xs font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:opacity-50"
                   >
                     Remove
                   </button>
                   <button
                     onClick={handleImport}
                     disabled={isUploading || !account.trim()}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isUploading ? (
                       <>
                         <LoadingSpinner size="sm" />
                         <span className="ml-2">
-                          {currentPhase === 'uploading' ? 'Uploading file...' :
-                            currentPhase === 'detecting' ? 'Detecting CSV structure...' :
-                              currentPhase === 'parsing' ? 'Parsing transactions...' :
-                                currentPhase === 'enhancing' ? 'Enhancing with AI...' :
-                                  'Finalizing...'}
+                          {getPhaseDescription(currentPhase, selectedFile.name)}
                         </span>
                       </>
                     ) : (
@@ -384,11 +425,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
             <div className="space-y-2">
               <div className="flex justify-between text-sm font-medium">
                 <span className="text-gray-700">
-                  {currentPhase === 'uploading' ? 'Uploading file...' :
-                    currentPhase === 'detecting' ? 'Processing CSV...' :
-                      currentPhase === 'parsing' ? 'Parsing transactions...' :
-                        currentPhase === 'enhancing' ? 'Enhancing with AI...' :
-                          'Finalizing...'}
+                  {selectedFile ? getPhaseDescription(currentPhase, selectedFile.name) : 'Processing...'}
                 </span>
                 <span className="text-blue-600">{uploadProgress}%</span>
               </div>
@@ -398,6 +435,17 @@ function FileUpload({ className = '' }: FileUploadProps) {
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
+
+              {/* Add detection status indicator */}
+              {uploadProgress < 30 && (
+                <div className="mt-2 text-xs text-gray-500 flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                  Detecting CSV structure and column mappings...
+                </div>
+              )}
             </div>
           )}
         </>
@@ -418,6 +466,28 @@ function FileUpload({ className = '' }: FileUploadProps) {
                 </span>
               </div>
             </div>
+
+            {/* Add detection information display */}
+            {importResult.detectionMethod && (
+              <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-green-800">
+                    CSV Analysis Method: {importResult.detectionMethod}
+                  </span>
+                  {importResult.detectionConfidence !== undefined && (
+                    <span className="text-sm text-green-700 bg-green-200 px-2 py-1 rounded">
+                      {Math.round(importResult.detectionConfidence)}% confidence
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm text-green-600 mt-1">
+                  {importResult.detectionMethod === 'RuleBased'
+                    ? 'Standard format detected using pattern matching'
+                    : 'Complex format analyzed using AI detection'
+                  }
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {importResult.enhancements.slice(0, 10).map((enhancement: any, index: number) => {
@@ -502,7 +572,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
           <div className="flex items-center justify-between">
             <button
               onClick={handleClearFile}
-              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
+              className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
             >
               Start Over
             </button>
@@ -511,14 +581,14 @@ function FileUpload({ className = '' }: FileUploadProps) {
               <button
                 onClick={() => handleEnhance(false)}
                 disabled={isUploading}
-                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:opacity-50"
+                className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:opacity-50"
               >
                 Skip Enhancement
               </button>
               <button
                 onClick={() => handleEnhance(true)}
                 disabled={isUploading}
-                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isUploading ? (
                   <>
@@ -549,7 +619,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
             </div>
             <button
               onClick={() => navigate('/transactions')}
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
+              className="cursor-pointer inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
             >
               View Transactions
             </button>
@@ -572,7 +642,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
             </div>
             <button
               onClick={() => navigate('/transactions')}
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
+              className="cursor-pointer inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
             >
               View Transactions
             </button>

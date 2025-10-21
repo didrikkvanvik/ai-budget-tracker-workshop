@@ -7,8 +7,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get('page') || '1', 10);
   const pageSize = parseInt(url.searchParams.get('pageSize') || '20', 10);
+  const category = url.searchParams.get('category') || undefined;
+  const account = url.searchParams.get('account') || undefined;
 
-  return await transactionsApi.getTransactions({ page, pageSize });
+  return await transactionsApi.getTransactions({ page, pageSize, category, account });
 }
 
 export default function Transactions() {

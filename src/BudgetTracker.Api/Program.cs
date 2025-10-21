@@ -5,6 +5,13 @@ using BudgetTracker.Api.Infrastructure;
 using BudgetTracker.Api.Features.Transactions;
 using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
+using BudgetTracker.Api.Features.Transactions.Import.Detection;
+using BudgetTracker.Api.Features.Intelligence;
+using BudgetTracker.Api.Features.Intelligence.Search;
+using BudgetTracker.Api.Features.Intelligence.Query;
+using BudgetTracker.Api.Features.Intelligence.Recommendations;
+using BudgetTracker.Api.Features.Analytics;
+using BudgetTracker.Api.Features.Analytics.Insights;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,18 +55,45 @@ builder.Services.AddSwaggerGen(c =>
 
 // Add Entity Framework
 builder.Services.AddDbContext<BudgetTrackerContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+        o => o.UseVector()));
 
-// Add CSV Import Service
+// Add import services
+// Add CSV detection services
+builder.Services.AddScoped<ICsvStructureDetector, CsvStructureDetector>();
+builder.Services.AddScoped<ICsvDetector, CsvDetector>();
+builder.Services.AddScoped<ICsvAnalyzer, CsvAnalyzer>();
+builder.Services.AddScoped<IImageImporter, ImageImporter>();
 builder.Services.AddScoped<CsvImporter>();
 
 // Configure Azure AI
 builder.Services.Configure<AzureAiConfiguration>(
     builder.Configuration.GetSection(AzureAiConfiguration.SectionName));
 
-// Register AI services
+// Azure OpenAI services
+builder.Services.AddScoped<IAzureOpenAIClientFactory, AzureOpenAIClientFactory>();
 builder.Services.AddScoped<IAzureChatService, AzureChatService>();
+
+// Register TransactionEnhancer with all its dependencies
 builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
+
+// Register embedding service for vector generation
+builder.Services.AddScoped<IAzureEmbeddingService, AzureEmbeddingService>();
+
+// Register semantic search and query services
+builder.Services.AddScoped<ISemanticSearchService, SemanticSearchService>();
+builder.Services.AddScoped<IQueryAssistantService, AzureAiQueryAssistantService>();
+
+// Register background service for automatic embedding generation
+builder.Services.AddHostedService<EmbeddingBackgroundService>();
+
+// Add analytics services
+builder.Services.AddScoped<IInsightsService, AzureAiInsightsService>();
+
+// Add recommendation services
+builder.Services.AddScoped<IRecommendationRepository, RecommendationAgent>();
+builder.Services.AddScoped<IRecommendationWorker, RecommendationProcessor>();
+builder.Services.AddHostedService<RecommendationBackgroundService>();
 
 // Add Auth with multiple schemes
 builder.Services.AddAuthorization(options =>
@@ -150,6 +184,8 @@ app
     .MapGroup("/api")
     .MapAntiForgeryEndpoints()
     .MapAuthEndpoints()
-    .MapTransactionEndpoints();
+    .MapTransactionEndpoints()
+    .MapIntelligenceEndpoints()
+    .MapAnalyticsEndpoints();
 
 app.Run();

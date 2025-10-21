@@ -4,7 +4,8 @@ export interface Transaction {
   description: string;
   amount: number;
   balance?: number;
-  category?: string;
+  category?: string; // Primary category (backward compatibility)
+  categories?: string[]; // All categories including primary
   labels?: string;
   importedAt: string;
   sourceFile?: string;
@@ -24,6 +25,21 @@ export interface TransactionListDto {
 export interface GetTransactionsParams {
   page?: number;
   pageSize?: number;
+  category?: string;
+  account?: string;
+}
+
+export interface TransactionFilters {
+  categories: string[];
+  accounts: string[];
+}
+
+export interface DeleteTransactionsRequest {
+  transactionIds: string[];
+}
+
+export interface DeleteTransactionsResult {
+  deletedCount: number;
 }
 
 export interface ImportTransactionsParams {
@@ -32,14 +48,13 @@ export interface ImportTransactionsParams {
 }
 
 export interface ImportResult {
-  totalRows: number;
   importedCount: number;
   failedCount: number;
   errors: string[];
-  sourceFile?: string;
   importSessionHash: string;
-  importedAt: string;
   enhancements: TransactionEnhancementResult[];
+  detectionMethod?: string; // "RuleBased" | "AI"
+  detectionConfidence?: number; // 0-100
 }
 
 export interface TransactionEnhancementResult {

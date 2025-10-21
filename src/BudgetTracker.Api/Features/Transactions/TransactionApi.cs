@@ -1,5 +1,6 @@
 using BudgetTracker.Api.Features.Transactions.Import;
 using BudgetTracker.Api.Features.Transactions.List;
+using BudgetTracker.Api.Features.Transactions.Category;
 
 namespace BudgetTracker.Api.Features.Transactions;
 
@@ -14,7 +15,8 @@ public static class TransactionApi
 
         transactionsGroup
             .MapTransactionImportEndpoints()
-            .MapTransactionListEndpoint();
+            .MapTransactionListEndpoint()
+            .MapCategoryEndpoints();
 
         return routes;
     }
