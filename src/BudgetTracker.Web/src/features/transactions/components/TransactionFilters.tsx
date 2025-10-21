@@ -17,7 +17,30 @@ const XIcon = () => (
   </svg>
 );
 
-export default function TransactionFilters() {
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18" />
+    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
+interface TransactionFiltersProps {
+  selectedCount?: number;
+  totalCount?: number;
+  allSelected?: boolean;
+  onSelectAll?: () => void;
+  onDelete?: () => void;
+}
+
+export default function TransactionFilters({
+  selectedCount = 0,
+  allSelected = false,
+  onSelectAll,
+  onDelete
+}: TransactionFiltersProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<FilterData>({ categories: [], accounts: [] });
   const [isLoading, setIsLoading] = useState(true);
@@ -84,13 +107,45 @@ export default function TransactionFilters() {
     );
   }
 
+  const hasSelection = selectedCount > 0;
+
   return (
     <div className="bg-white rounded-lg border border-neutral-200 p-4 mb-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <FilterIcon />
-          <span>Filter by:</span>
-        </div>
+        {/* Select All Checkbox */}
+        {onSelectAll && (
+          <div className="flex items-center gap-2 pr-3 border-r border-neutral-200">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onSelectAll}
+              className="w-4 h-4 text-indigo-600 border-neutral-300 rounded focus:ring-indigo-500 focus:ring-2 cursor-pointer"
+              aria-label="Select all transactions"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              {hasSelection ? `${selectedCount} selected` : 'Select all'}
+            </span>
+          </div>
+        )}
+
+        {/* Delete Button */}
+        {hasSelection && onDelete && (
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          >
+            <TrashIcon />
+            Delete {selectedCount} {selectedCount === 1 ? 'transaction' : 'transactions'}
+          </button>
+        )}
+
+        {/* Filters Section - only show if no items selected */}
+        {!hasSelection && (
+          <>
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <FilterIcon />
+              <span>Filter by:</span>
+            </div>
 
         {/* Category Filter */}
         <div className="relative">
@@ -170,6 +225,8 @@ export default function TransactionFilters() {
                 Clear all
               </button>
             </div>
+          </>
+        )}
           </>
         )}
       </div>

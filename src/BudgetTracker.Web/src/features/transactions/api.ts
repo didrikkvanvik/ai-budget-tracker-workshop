@@ -7,7 +7,9 @@ import type {
   EnhanceImportRequest,
   EnhanceImportResult,
   TransactionEnhancementResult,
-  TransactionFilters
+  TransactionFilters,
+  DeleteTransactionsRequest,
+  DeleteTransactionsResult
 } from './types';
 
 export type { EnhanceImportResult, TransactionEnhancementResult };
@@ -29,6 +31,18 @@ export const transactionsApi = {
   async getFilters(): Promise<TransactionFilters> {
     const response = await apiClient.get<TransactionFilters>('/transactions/filters');
     return response.data;
+  },
+
+  async deleteTransactions(request: DeleteTransactionsRequest): Promise<DeleteTransactionsResult> {
+    try {
+      const response = await apiClient.delete<DeleteTransactionsResult>('/transactions/bulk', {
+        data: request
+      });
+      return response.data;
+    } catch (error) {
+      handleError('Failed to delete transactions', error);
+      throw error;
+    }
   },
 
   async importTransactions(params: ImportTransactionsParams): Promise<ImportResult> {

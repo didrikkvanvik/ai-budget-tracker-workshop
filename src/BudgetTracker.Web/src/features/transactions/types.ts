@@ -33,6 +33,14 @@ export interface TransactionFilters {
   accounts: string[];
 }
 
+export interface DeleteTransactionsRequest {
+  transactionIds: string[];
+}
+
+export interface DeleteTransactionsResult {
+  deletedCount: number;
+}
+
 export interface ImportTransactionsParams {
   formData: FormData;
   onUploadProgress?: (progressEvent: any) => void;
